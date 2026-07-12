@@ -11,16 +11,6 @@ projekt architektury → przygotowanie infrastruktury → instalacja → klaster
 | [`docs/index.html`](docs/index.html) | wersja webowa z **interaktywnym kreatorem doboru architektury** (EPS → sizing → rekomendacja) |
 | [`site/build.py`](site/build.py) | skrypt budujący `docs/index.html` z pliku Markdown |
 
-## Publikacja jako strona (GitHub Pages)
-
-1. Wypchnij repozytorium na GitHub.
-2. W repo: **Settings → Pages**.
-3. W sekcji *Build and deployment*: Source = **Deploy from a branch**, Branch = **main**, folder = **/docs** → Save.
-4. Po ~1 minucie strona będzie dostępna pod `https://<użytkownik>.github.io/<repo>/`.
-
-Strona jest w pełni samodzielna (jeden plik HTML, zero zależności zewnętrznych),
-obsługuje motyw jasny/ciemny i działa na urządzeniach mobilnych.
-
 ## Aktualizacja treści
 
 Edytuj `Instrukcja-Wdrozeniowa-WAZUH.md`, następnie przebuduj stronę:
