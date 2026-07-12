@@ -11,12 +11,3 @@ projekt architektury → przygotowanie infrastruktury → instalacja → klaster
 | [`docs/index.html`](docs/index.html) | wersja webowa z **interaktywnym kreatorem doboru architektury** (EPS → sizing → rekomendacja) |
 | [`site/build.py`](site/build.py) | skrypt budujący `docs/index.html` z pliku Markdown |
 
-## Aktualizacja treści
-
-Edytuj `Instrukcja-Wdrozeniowa-WAZUH.md`, następnie przebuduj stronę:
-
-```bash
-python3 site/build.py    # wymaga: python3-markdown
-```
-
-i zacommituj zmieniony `docs/index.html`.
