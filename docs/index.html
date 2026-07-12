@@ -1,0 +1,2236 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Kompleksowa instrukcja wdrożeniowa platformy Wazuh: architektura, sizing, instalacja, klaster HA, bezpieczeństwo. Z interaktywnym kreatorem doboru architektury.">
+</head>
+<body>
+<title>Instrukcja wdrożeniowa WAZUH</title>
+<style>
+:root{
+  --bg:#F5F7FB; --surface:#FFFFFF; --surface2:#EBF0F7; --sidebar:#EFF3F9;
+  --ink:#17222F; --ink2:#46586B; --muted:#7A8A9B; --line:#D9E1EB;
+  --accent:#2563AC; --accent-soft:#E3EDF9; --accent-ink:#1D4E88;
+  --warn:#8A5D10; --warn-bg:#FBF3E0; --warn-line:#E5C377;
+  --tip:#1E6B52; --tip-bg:#E7F4EE; --tip-line:#9CCCB6;
+  --check:#2E6E45; --check-bg:#EAF4EC; --check-line:#A9CFB4;
+  --code-bg:#101A28; --code-ink:#D6E2F0; 
+  --shadow:0 1px 2px rgba(23,34,47,.06),0 6px 24px -12px rgba(23,34,47,.12);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0C121C; --surface:#121A28; --surface2:#1A2434; --sidebar:#0F1723;
+  --ink:#E4EAF2; --ink2:#AAB8C8; --muted:#75859A; --line:#26344A;
+  --accent:#6EA7E8; --accent-soft:#1B2C44; --accent-ink:#9CC4F2;
+  --warn:#E2B45C; --warn-bg:#2A2210; --warn-line:#6B5522;
+  --tip:#7CC8A8; --tip-bg:#11271E; --tip-line:#2C5A45;
+  --check:#84C297; --check-bg:#12261A; --check-line:#2E5A3D;
+  --code-bg:#0B131F; --code-ink:#CEDCEC;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -12px rgba(0,0,0,.5);
+}}
+:root[data-theme="light"]{
+  --bg:#F5F7FB; --surface:#FFFFFF; --surface2:#EBF0F7; --sidebar:#EFF3F9;
+  --ink:#17222F; --ink2:#46586B; --muted:#7A8A9B; --line:#D9E1EB;
+  --accent:#2563AC; --accent-soft:#E3EDF9; --accent-ink:#1D4E88;
+  --warn:#8A5D10; --warn-bg:#FBF3E0; --warn-line:#E5C377;
+  --tip:#1E6B52; --tip-bg:#E7F4EE; --tip-line:#9CCCB6;
+  --check:#2E6E45; --check-bg:#EAF4EC; --check-line:#A9CFB4;
+  --code-bg:#101A28; --code-ink:#D6E2F0;
+  --shadow:0 1px 2px rgba(23,34,47,.06),0 6px 24px -12px rgba(23,34,47,.12);
+}
+:root[data-theme="dark"]{
+  --bg:#0C121C; --surface:#121A28; --surface2:#1A2434; --sidebar:#0F1723;
+  --ink:#E4EAF2; --ink2:#AAB8C8; --muted:#75859A; --line:#26344A;
+  --accent:#6EA7E8; --accent-soft:#1B2C44; --accent-ink:#9CC4F2;
+  --warn:#E2B45C; --warn-bg:#2A2210; --warn-line:#6B5522;
+  --tip:#7CC8A8; --tip-bg:#11271E; --tip-line:#2C5A45;
+  --check:#84C297; --check-bg:#12261A; --check-line:#2E5A3D;
+  --code-bg:#0B131F; --code-ink:#CEDCEC;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 24px -12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.65 system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:var(--accent-ink);text-decoration-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+.side{background:var(--sidebar);border-right:1px solid var(--line);padding:0}
+.side-inner{position:sticky;top:0;max-height:100vh;overflow-y:auto;padding:28px 20px 40px}
+.main{min-width:0;padding:0 clamp(20px,5vw,64px) 96px}
+.content{max-width:78ch}
+
+/* ---------- sidebar ---------- */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-weight:800;font-size:15px;letter-spacing:.02em;flex:none}
+.brand b{font-size:15px;letter-spacing:.01em}
+.brand small{display:block;color:var(--muted);font-size:11.5px;font-weight:400}
+.side nav{margin-top:18px}
+.toc-h2, .toc-h3{display:block;text-decoration:none;border-left:2px solid transparent}
+.toc-h2{color:var(--ink2);font-size:13.5px;font-weight:600;padding:5px 10px;margin-top:2px;border-radius:0 6px 6px 0}
+.toc-h3{color:var(--muted);font-size:12.5px;padding:3px 10px 3px 22px}
+.toc-h2:hover,.toc-h3:hover{background:var(--surface2);color:var(--ink)}
+.toc-h2.on,.toc-h3.on{border-left-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.side-foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--line)}
+.theme-btn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+  font:12.5px/1 inherit;padding:7px 12px;border-radius:99px;cursor:pointer}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.menu-btn{display:none}
+
+/* ---------- header ---------- */
+.hero{padding:52px 0 8px}
+.eyebrow{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);
+  padding:4px 10px;border-radius:99px}
+.hero h1{font-size:clamp(26px,4vw,38px);line-height:1.15;letter-spacing:-.015em;
+  margin:14px 0 10px;text-wrap:balance}
+.hero .meta{color:var(--muted);font-size:13.5px;display:flex;gap:18px;flex-wrap:wrap;margin:0}
+
+/* ---------- typography ---------- */
+.content h2{font-size:25px;letter-spacing:-.012em;line-height:1.25;margin:64px 0 14px;
+  padding-top:22px;border-top:1px solid var(--line);text-wrap:balance}
+.content h3{font-size:19px;letter-spacing:-.008em;margin:38px 0 10px;text-wrap:balance}
+.content h4{font-size:16px;margin:28px 0 8px}
+.content p, .content li{color:var(--ink);}
+.content hr{border:0;border-top:1px solid var(--line);margin:40px 0}
+.content blockquote{margin:18px 0;padding:12px 18px;border-left:3px solid var(--accent);
+  background:var(--surface);border-radius:0 10px 10px 0;color:var(--ink2)}
+.content blockquote p{margin:6px 0}
+.content ul,.content ol{padding-left:26px}
+.content li{margin:4px 0}
+li.task{list-style:none;margin-left:-22px;display:flex;gap:9px;align-items:baseline}
+li.task .cb{flex:none;width:13px;height:13px;border:1.5px solid var(--muted);border-radius:3.5px;
+  transform:translateY(1.5px)}
+
+/* ---------- code ---------- */
+code{font-family:ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,Menlo,monospace;
+  font-size:.875em}
+p code, li code, td code, h2 code, h3 code{background:var(--surface2);
+  padding:.12em .38em;border-radius:5px;color:var(--ink)}
+pre{background:var(--code-bg);color:var(--code-ink);border-radius:12px;
+  padding:16px 18px;overflow-x:auto;line-height:1.55;box-shadow:var(--shadow);
+  border:1px solid color-mix(in srgb,var(--code-bg) 60%,var(--line))}
+pre code{background:none;padding:0;color:inherit;font-size:13px}
+
+/* ---------- tables ---------- */
+.tbl{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  text-align:left;font-weight:650}
+th,td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface2)}
+
+/* ---------- callouts ---------- */
+.co{border-radius:10px;padding:12px 16px;margin:16px 0;border:1px solid;font-size:15px}
+.co::before{font-weight:800;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  display:block;margin-bottom:3px}
+.co-warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--ink)}
+.co-warn::before{content:"⚠ Uwaga";color:var(--warn)}
+.co-tip{background:var(--tip-bg);border-color:var(--tip-line)}
+.co-tip::before{content:"Dobra praktyka";color:var(--tip)}
+.co-check{background:var(--check-bg);border-color:var(--check-line)}
+.co-check::before{content:"✓ Punkt kontrolny";color:var(--check)}
+
+/* ---------- diagrams ---------- */
+.diagram{margin:26px 0;padding:22px;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;box-shadow:var(--shadow)}
+.diagram figcaption{margin-top:14px;color:var(--muted);font-size:12.5px}
+.dg-tier{border:1px dashed var(--line);border-radius:10px;padding:12px}
+.dg-slim{border-style:none;padding:0}
+.dg-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px}
+.dg-label small{font-weight:500;text-transform:none;letter-spacing:0}
+.dg-row{display:flex;gap:10px;flex-wrap:wrap}
+.dg-node{flex:1 1 130px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;
+  padding:9px 12px;font-size:13.5px;font-weight:600;text-align:center;line-height:1.35}
+.dg-node small{display:block;font-weight:450;color:var(--muted);font-size:11.5px;margin-top:2px}
+.dg-master{border-color:var(--accent);background:var(--accent-soft)}
+.dg-lb,.dg-dash{background:var(--accent-soft);border-color:var(--accent)}
+.dg-user{background:transparent;border-style:dashed}
+.dg-arrow{display:flex;align-items:center;gap:10px;margin:8px 4px;color:var(--muted);font-size:12px}
+.dg-arrow::before{content:"";width:2px;height:22px;margin-left:26px;
+  background:linear-gradient(var(--accent),var(--accent));flex:none}
+.dg-arrow span{background:var(--surface2);border-radius:99px;padding:2px 10px}
+.dg-steps{display:flex;flex-direction:column;gap:8px;margin:4px 0}
+.dg-step{display:flex;gap:10px;align-items:baseline;font-size:14.5px}
+.dg-num{flex:none;width:22px;height:22px;border-radius:99px;background:var(--accent);color:#fff;
+  font-size:12px;font-weight:700;display:grid;place-items:center;transform:translateY(3px)}
+.dg-branch{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:16px 0}
+.dg-card{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--surface2)}
+.dg-cond{padding:10px 14px;font-size:13px;color:var(--ink2);border-bottom:1px solid var(--line);min-height:64px}
+.dg-res{padding:12px 14px;font-weight:750;font-size:14px;letter-spacing:.02em}
+.dg-res small{display:block;font-weight:450;color:var(--ink2);letter-spacing:0;margin-top:3px}
+.dg-card.ok .dg-res{color:var(--check)} .dg-card.mid .dg-res{color:var(--accent-ink)} .dg-card.big .dg-res{color:var(--warn)}
+.dg-chain{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0;counter-reset:chain}
+.dg-chain li{counter-increment:chain;flex:1 1 130px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px 10px 12px;font-size:13px;position:relative}
+.dg-chain li::before{content:counter(chain);display:inline-grid;place-items:center;width:20px;height:20px;
+  border-radius:99px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;margin-bottom:6px}
+.dg-chain li b{display:block;font-size:13.5px}
+.dg-chain li small{color:var(--muted)}
+
+/* ---------- kalkulator ---------- */
+.calc{margin:36px 0 8px;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  background:var(--surface);box-shadow:var(--shadow)}
+.calc-head{padding:26px 28px 6px;background:
+  linear-gradient(180deg,var(--accent-soft),transparent 130%)}
+.calc-title{margin:12px 0 6px;font-size:24px;letter-spacing:-.012em}
+.calc-sub{color:var(--ink2);max-width:64ch;margin:0 0 12px;font-size:14.5px}
+.calc-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:0}
+.calc-form{padding:18px 24px 26px;border-right:1px solid var(--line);display:flex;
+  flex-direction:column;gap:16px}
+.calc-form fieldset{border:0;padding:0;margin:0}
+.calc-form legend{font-size:11.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;padding:0}
+.fld{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0}
+.fld label{font-size:14px;color:var(--ink)}
+.fld label small{color:var(--muted)}
+.fld input[type=number]{width:92px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink);font:14px inherit;font-variant-numeric:tabular-nums;text-align:right}
+.fld input[type=number]:focus{border-color:var(--accent)}
+.fld-check{justify-content:flex-start}
+.fld-check input{width:16px;height:16px;accent-color:var(--accent)}
+.calc-adv summary{cursor:pointer;font-size:13px;color:var(--accent-ink);font-weight:600}
+.calc-adv[open] summary{margin-bottom:6px}
+.calc-out{padding:22px 26px 26px;min-width:0}
+.rec{border:1px solid var(--accent);background:var(--accent-soft);border-radius:12px;
+  padding:16px 20px;margin-bottom:16px}
+.rec-eyebrow{font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink)}
+.rec-name{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:4px 0 2px}
+.rec-why{margin:4px 0 0;color:var(--ink2);font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.tile{background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.tile-label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted)}
+.tile-val{display:block;font-size:24px;font-weight:750;font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em;margin-top:3px}
+.tile-sub{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.calc-tbl{margin:0 0 14px}
+.calc-notes{margin:0 0 14px;padding-left:22px;font-size:13.5px;color:var(--ink2)}
+.calc-notes li{margin:4px 0}
+.calc-how summary{cursor:pointer;font-size:13px;color:var(--accent-ink);font-weight:600}
+.calc-how ul{font-size:13px;color:var(--ink2);margin:8px 0 0}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1020px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;inset:0 28% 0 0;z-index:40;transform:translateX(-102%);
+    transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  @media (prefers-reduced-motion: reduce){.side{transition:none}}
+  .side.open{transform:none}
+  .menu-btn{display:inline-flex;align-items:center;gap:8px;position:fixed;top:14px;left:14px;z-index:50;
+    appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    font:13px/1 inherit;font-weight:650;padding:9px 14px;border-radius:99px;cursor:pointer;box-shadow:var(--shadow)}
+  .hero{padding-top:70px}
+  .calc-grid{grid-template-columns:1fr}
+  .calc-form{border-right:0;border-bottom:1px solid var(--line)}
+}
+@media print{
+  .side,.menu-btn,.theme-btn{display:none}
+  .app{display:block}
+  pre{white-space:pre-wrap}
+}
+</style>
+<button class="menu-btn" id="menuBtn" aria-label="Pokaż spis treści">☰ Spis treści</button>
+<div class="app">
+<aside class="side" id="side"><div class="side-inner">
+  <div class="brand"><span class="brand-mark">W</span><span><b>Wazuh — wdrożenie</b><small>instrukcja dla administratorów</small></span></div>
+  <nav id="toc" aria-label="Spis treści"><a class="toc-h2" href="#kreator">✦ Kreator doboru architektury</a></nav>
+  <div class="side-foot"><button class="theme-btn" id="themeBtn" type="button">Motyw</button></div>
+</div></aside>
+<main class="main">
+<header class="hero">
+  <span class="eyebrow">Manual wdrożeniowy · SIEM / XDR</span>
+  <h1>Instrukcja wdrożeniowa platformy WAZUH</h1>
+  <p class="meta"><span>Wersja 1.0 · 2026-07-12</span><span>Wazuh 4.x (4.9–4.14)</span><span>projekt → infrastruktura → instalacja → klaster/HA → bezpieczeństwo</span></p>
+</header>
+
+<section class="calc" id="kreator" aria-label="Kreator doboru architektury">
+  <div class="calc-head">
+    <span class="eyebrow">Narzędzie interaktywne</span>
+    <h2 class="calc-title">Kreator doboru architektury</h2>
+    <p class="calc-sub">Wpisz liczbę źródeł logów w swojej organizacji — kreator oszacuje EPS,
+    dobierze wariant architektury i policzy liczbę maszyn oraz zasoby według metodyki z rozdziału 4.</p>
+  </div>
+  <div class="calc-grid">
+    <form class="calc-form" id="calcForm" autocomplete="off">
+      <fieldset>
+        <legend>Źródła logów</legend>
+        <div class="fld"><label for="winSrv">Serwery Windows</label>
+          <input type="number" id="winSrv" min="0" max="100000" value="10" inputmode="numeric"></div>
+        <div class="fld"><label for="winWs">Stacje robocze Windows</label>
+          <input type="number" id="winWs" min="0" max="1000000" value="100" inputmode="numeric"></div>
+        <div class="fld"><label for="linux">Serwery / stacje Linux</label>
+          <input type="number" id="linux" min="0" max="100000" value="10" inputmode="numeric"></div>
+        <div class="fld"><label for="utm">Firewalle / UTM</label>
+          <input type="number" id="utm" min="0" max="10000" value="1" inputmode="numeric"></div>
+        <div class="fld"><label for="extraEps">Inne źródła <small>(dodatkowy EPS)</small></label>
+          <input type="number" id="extraEps" min="0" max="1000000" value="0" inputmode="numeric"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Parametry</legend>
+        <div class="fld"><label for="retention">Retencja online <small>(dni)</small></label>
+          <input type="number" id="retention" min="7" max="1095" value="90" inputmode="numeric"></div>
+        <div class="fld fld-check">
+          <input type="checkbox" id="headroom" checked>
+          <label for="headroom">Zapas ×2 <small>(wzrost, NIS2 — zalecane)</small></label></div>
+      </fieldset>
+      <details class="calc-adv">
+        <summary>Zaawansowane: EPS na urządzenie</summary>
+        <div class="fld"><label for="epsWinSrv">Serwer Windows <small>(typowo 5–20)</small></label>
+          <input type="number" id="epsWinSrv" min="1" max="100" value="15"></div>
+        <div class="fld"><label for="epsWinWs">Stacja Windows <small>(5–10)</small></label>
+          <input type="number" id="epsWinWs" min="1" max="50" value="8"></div>
+        <div class="fld"><label for="epsLinux">Linux <small>(1–5)</small></label>
+          <input type="number" id="epsLinux" min="1" max="50" value="3"></div>
+        <div class="fld"><label for="epsUtm">Firewall / UTM <small>(50–300)</small></label>
+          <input type="number" id="epsUtm" min="10" max="1000" value="150"></div>
+      </details>
+    </form>
+
+    <div class="calc-out" id="calcOut" aria-live="polite">
+      <div class="rec" id="recCard">
+        <span class="rec-eyebrow">Rekomendowana architektura</span>
+        <div class="rec-name" id="recName">—</div>
+        <p class="rec-why" id="recWhy"></p>
+      </div>
+      <div class="tiles">
+        <div class="tile"><span class="tile-label">EPS projektowy</span><span class="tile-val" id="tEps">—</span><span class="tile-sub" id="tEpsSub"></span></div>
+        <div class="tile"><span class="tile-label">Agenci</span><span class="tile-val" id="tAgents">—</span><span class="tile-sub">końcówki z agentem</span></div>
+        <div class="tile"><span class="tile-label">Wolumen dzienny</span><span class="tile-val" id="tDaily">—</span><span class="tile-sub">GB / dzień (zakres)</span></div>
+        <div class="tile"><span class="tile-label">Dysk łącznie</span><span class="tile-val" id="tDisk">—</span><span class="tile-sub" id="tDiskSub"></span></div>
+      </div>
+      <div class="tbl calc-tbl">
+        <table>
+          <thead><tr><th>Maszyna</th><th>Rola</th><th>vCPU</th><th>RAM</th><th>Dysk (SSD)</th></tr></thead>
+          <tbody id="machRows"></tbody>
+        </table>
+      </div>
+      <ul class="calc-notes" id="calcNotes"></ul>
+      <details class="calc-how">
+        <summary>Jak to jest liczone?</summary>
+        <ul>
+          <li>EPS = Σ (liczba urządzeń × EPS na urządzenie) + inne źródła; opcjonalnie ×2 zapasu.</li>
+          <li>Wolumen: 1 EPS ≈ 0,5–1 KB/s → 100 EPS ≈ 4–8 GB/dzień (górna granica użyta do sizingu).</li>
+          <li>Dysk = wolumen dzienny × retencja × 1,3 (narzut indeksów) × 1,25 (zapas); w klastrze ×2 (1 replika).</li>
+          <li>CPU: ~100 EPS ≈ 1 vCPU (manager), ~1–2 vCPU (indexer). Heap JVM indexera = 50% RAM, maks. 32 GB.</li>
+          <li>Progi architektury: ≤200 EPS standalone · 200–1000 klaster średni · &gt;1000 klaster duży (rozdz. 4.1).</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+</section>
+
+<article class="content" id="content">
+<h2 id="1-wprowadzenie">1. Wprowadzenie</h2>
+<h3 id="11-cel-dokumentu">1.1 Cel dokumentu</h3>
+<p>Niniejsza instrukcja prowadzi administratora IT <strong>krok po kroku przez pełne, produkcyjne wdrożenie platformy Wazuh</strong> — od decyzji architektonicznych, przez przygotowanie infrastruktury i instalację komponentów, po konfigurację klastra wysokiej dostępności i zabezpieczenie samej platformy.</p>
+<p>Dokument został napisany tak, aby:</p>
+<ul>
+<li><strong>osoba wdrażająca Wazuh po raz pierwszy</strong> mogła przejść przez proces bez zewnętrznej pomocy,</li>
+<li><strong>doświadczony administrator</strong> znalazł w nim gotowe wartości referencyjne (sizing, porty, konfiguracje) i listę pułapek, które najczęściej wydłużają wdrożenia,</li>
+<li>każdy etap kończył się <strong>weryfikowalnym stanem</strong> ("wiem, że działa, bo sprawdziłem X").</li>
+</ul>
+<h3 id="12-jak-korzystac-z-instrukcji">1.2 Jak korzystać z instrukcji</h3>
+<ul>
+<li>Etapy wdrożenia (rozdziały 4–8) wykonuj <strong>w kolejności</strong> — każdy bazuje na poprzednim.</li>
+<li>Bloki <code>bash</code> / <code>yaml</code> / <code>xml</code> / <code>json</code> zawierają komendy i konfiguracje do bezpośredniego użycia. Wartości do podmiany oznaczono <code>&lt;NAWIASAMI_OSTRYMI&gt;</code> lub zmiennymi (<code>$NODE_NAME</code>).</li>
+<li>Ramki <strong>⚠️ Uwaga</strong> opisują błędy, które realnie zatrzymują wdrożenia — nie pomijaj ich.</li>
+<li>Rozdział 9 (<strong>Troubleshooting</strong>) zbiera objawy i rozwiązania — wróć do niego przy każdym nieoczekiwanym zachowaniu platformy.</li>
+</ul>
+<h3 id="13-konwencje">1.3 Konwencje</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Oznaczenie</th>
+<th>Znaczenie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#</code> w bloku poleceń</td>
+<td>polecenie wykonywane jako <code>root</code> (lub przez <code>sudo</code>)</td>
+</tr>
+<tr>
+<td><code>&lt;IP_KOMPONENTU&gt;</code></td>
+<td>wartość do podmiany na własną</td>
+</tr>
+<tr>
+<td>⚠️ <strong>Uwaga</strong></td>
+<td>częsty błąd / przypadek brzegowy</td>
+</tr>
+<tr>
+<td>💡 <strong>Dobra praktyka</strong></td>
+<td>zalecenie wykraczające poza minimum</td>
+</tr>
+<tr>
+<td>✅ <strong>Punkt kontrolny</strong></td>
+<td>weryfikacja poprawności etapu</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2 id="2-architektura-wazuh-przeglad">2. Architektura Wazuh — przegląd</h2>
+<p>Zanim podejmiesz decyzje projektowe, musisz rozumieć, z czego składa się platforma i jak przepływają w niej dane.</p>
+<h3 id="21-komponenty">2.1 Komponenty</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Komponent</th>
+<th>Rola</th>
+<th>Kluczowe zasoby</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Wazuh Agent</strong></td>
+<td>instalowany na końcówkach (serwery, stacje, VM, chmura); zbiera logi (Log Collector), monitoruje integralność plików (FIM), ocenia konfigurację (SCA), wykrywa podatności, wykonuje Active Response</td>
+<td>znikome obciążenie hosta</td>
+</tr>
+<tr>
+<td><strong>Wazuh Manager (Server)</strong></td>
+<td>odbiera dane od agentów (usługa <code>remoted</code>), dekoduje zdarzenia i dopasowuje reguły (<code>analysisd</code>), zarządza agentami; w klastrze pracuje jako <strong>master</strong> lub <strong>worker</strong>; razem z nim instalowany jest <strong>Filebeat</strong>, który wysyła alerty do Indexera</td>
+<td>CPU (parsowanie reguł), RAM (kolejki)</td>
+</tr>
+<tr>
+<td><strong>Wazuh Indexer</strong></td>
+<td>silnik indeksująco-wyszukujący oparty na <strong>OpenSearch</strong>; przechowuje alerty i archiwa w indeksach dziennych podzielonych na <strong>shardy</strong></td>
+<td>RAM (heap JVM) + <strong>szybkie dyski (SSD/NVMe)</strong> — to wydajnościowy "killer" platformy</td>
+</tr>
+<tr>
+<td><strong>Wazuh Dashboard</strong></td>
+<td>interfejs WWW (port 443) — wizualizacja, zarządzanie agentami, konfiguracja bezpieczeństwa; jest <strong>klientem</strong> Indexera i API Managera</td>
+<td>niewielkie; jeden dashboard obsłuży nawet bardzo dużą infrastrukturę</td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p><strong>Kontekst historyczny (ważny przy czytaniu starszych materiałów):</strong> Wazuh wywodzi się z projektu OSSEC (host IDS). Do wersji 4.6 backendem był Elastic Search + Kibana; obecnie jest to <strong>OpenSearch</strong> (Indexer) i <strong>OpenSearch Dashboards</strong> (Dashboard). Filebeat pozostał jako warstwa transportu Manager → Indexer — stąd w konfiguracji nadal spotkasz nazwy typu <code>output.elasticsearch</code> czy konto <code>kibanaserver</code>. To normalne.</p>
+</blockquote>
+<h3 id="22-diagram-architektury-wariant-klastrowy">2.2 Diagram architektury (wariant klastrowy)</h3>
+
+<figure class="diagram" aria-label="Diagram architektury klastrowej Wazuh">
+  <div class="dg-tier">
+    <div class="dg-label">Końcówki i źródła logów</div>
+    <div class="dg-row">
+      <div class="dg-node">Agent Windows</div>
+      <div class="dg-node">Agent Linux / macOS</div>
+      <div class="dg-node">Urządzenia sieciowe<br><small>syslog / agentless</small></div>
+    </div>
+  </div>
+  <div class="dg-arrow"><span>1514 dane · 1515 rejestracja · 514 syslog</span></div>
+  <div class="dg-tier dg-slim">
+    <div class="dg-row"><div class="dg-node dg-lb">Load balancer (NGINX / HAProxy)<br><small>lub lista serwerów w konfiguracji agenta</small></div></div>
+  </div>
+  <div class="dg-arrow"><span>1515 zawsze do mastera · 1514 round-robin</span></div>
+  <div class="dg-tier">
+    <div class="dg-label">Klaster Wazuh Manager <small>— synchronizacja :1516</small></div>
+    <div class="dg-row">
+      <div class="dg-node dg-master">Manager <b>MASTER</b><br><small>+ Filebeat</small></div>
+      <div class="dg-node">Manager worker 1<br><small>+ Filebeat</small></div>
+      <div class="dg-node">Manager worker n<br><small>+ Filebeat</small></div>
+    </div>
+  </div>
+  <div class="dg-arrow"><span>Filebeat → TLS :9200</span></div>
+  <div class="dg-tier">
+    <div class="dg-label">Klaster Wazuh Indexer <small>— OpenSearch, komunikacja :9200 / 9300–9400</small></div>
+    <div class="dg-row">
+      <div class="dg-node">Indexer node 1</div>
+      <div class="dg-node">Indexer node 2</div>
+      <div class="dg-node">Indexer node 3</div>
+    </div>
+  </div>
+  <div class="dg-arrow dg-up"><span>Dashboard czyta dane :9200 · API managera :55000</span></div>
+  <div class="dg-tier dg-slim">
+    <div class="dg-row">
+      <div class="dg-node dg-dash">Wazuh Dashboard <small>HTTPS :443</small></div>
+      <div class="dg-node dg-user">Administrator / SOC<br><small>dostęp wyłącznie przez VPN</small></div>
+    </div>
+  </div>
+  <figcaption>Wariant klastrowy. W wariancie standalone wszystkie komponenty serwerowe stoją na jednej maszynie.</figcaption>
+</figure>
+
+<p>W wariancie <strong>standalone (all-in-one)</strong> wszystkie trzy komponenty serwerowe (Manager, Indexer, Dashboard) stoją na jednej maszynie, a agenci łączą się bezpośrednio z jej adresem.</p>
+<h3 id="23-przepyw-danych-potok-analizy">2.3 Przepływ danych (potok analizy)</h3>
+<ol>
+<li>Agent (lub urządzenie syslog) wysyła zdarzenia do Managera (usługa <code>remoted</code>, port 1514).</li>
+<li><code>analysisd</code> przetwarza zdarzenie w trzech fazach: <strong>pre-decoding</strong> (timestamp, hostname), <strong>decoding</strong> (rozbicie na pola, np. użytkownik, źródłowy adres IP), <strong>rule matching</strong> (dopasowanie do ~4500 wbudowanych reguł).</li>
+<li>Zdarzenie, które trafiło w regułę → <code>alerts.json</code>; pozostałe (opcjonalnie) → <code>archives.json</code> w <code>/var/ossec/logs/</code>.</li>
+<li><strong>Filebeat</strong> czyta <code>alerts.json</code> i wysyła dane po TLS do <strong>Indexera</strong> (indeksy dzienne <code>wazuh-alerts-4.x-RRRR.MM.DD</code>).</li>
+<li><strong>Dashboard</strong> odpytuje Indexer (dane) i API Managera (zarządzanie).</li>
+</ol>
+<h3 id="24-tabela-portow-do-regu-firewalla">2.4 Tabela portów (do reguł firewalla)</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Protokół</th>
+<th>Kierunek</th>
+<th>Zastosowanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1514</strong></td>
+<td>TCP (opcjonalnie UDP)</td>
+<td>agent → manager</td>
+<td>przesyłanie zdarzeń (szyfrowane AES)</td>
+</tr>
+<tr>
+<td><strong>1515</strong></td>
+<td>TCP</td>
+<td>agent → manager</td>
+<td>rejestracja/enrollment agenta (TLS); w klastrze <strong>zawsze do mastera</strong></td>
+</tr>
+<tr>
+<td><strong>1516</strong></td>
+<td>TCP</td>
+<td>manager ↔ manager</td>
+<td>synchronizacja klastra managerów</td>
+</tr>
+<tr>
+<td><strong>514</strong></td>
+<td>UDP/TCP</td>
+<td>urządzenie → manager</td>
+<td>syslog (tryb agentless); <strong>domyślnie wyłączony</strong></td>
+</tr>
+<tr>
+<td><strong>9200</strong></td>
+<td>TCP</td>
+<td>manager/dashboard → indexer</td>
+<td>REST API Indexera (TLS)</td>
+</tr>
+<tr>
+<td><strong>9300–9400</strong></td>
+<td>TCP</td>
+<td>indexer ↔ indexer</td>
+<td>komunikacja wewnętrzna klastra Indexerów</td>
+</tr>
+<tr>
+<td><strong>55000</strong></td>
+<td>TCP</td>
+<td>dashboard/integracje → manager</td>
+<td>Wazuh API (REST, TLS)</td>
+</tr>
+<tr>
+<td><strong>443</strong></td>
+<td>TCP</td>
+<td>administrator → dashboard</td>
+<td>interfejs WWW</td>
+</tr>
+</tbody>
+</table></div>
+<p class="co co-warn">nie używaj portu 443 do komunikacji agentów z managerem — to port zarezerwowany dla Dashboardu, a mieszanie ruchu agentów z ruchem HTTPS "zrobi sieczkę" na firewallu i utrudni analizę. Agenci zostają na 1514.</p>
+<hr />
+<h2 id="3-wymagania-wstepne-prerequisites">3. Wymagania wstępne (Prerequisites)</h2>
+<p>Przed rozpoczęciem etapu 1 upewnij się, że dysponujesz:</p>
+<ul>
+<li class="task"><span class="cb" aria-hidden="true"></span><strong>Systemem operacyjnym dla serwerów:</strong> wyłącznie Linux — wspierane rodziny: Ubuntu/Debian (pakiety DEB), RHEL/Rocky/AlmaLinux/Amazon Linux (RPM). Architektury x86_64 oraz ARM (od 4.12). <em>Serwera Wazuh nie zainstalujesz na Windows.</em></li>
+<li class="task"><span class="cb" aria-hidden="true"></span><strong>Dostępem <code>root</code>/<code>sudo</code></strong> do wszystkich maszyn.</li>
+<li class="task"><span class="cb" aria-hidden="true"></span><strong>Inwentaryzacją źródeł logów:</strong> liczba serwerów Windows/Linux, stacji roboczych, urządzeń sieciowych (firewalle/UTM), planowane integracje — będzie potrzebna do szacowania EPS (rozdz. 4.2).</li>
+<li class="task"><span class="cb" aria-hidden="true"></span><strong>Decyzją o retencji logów</strong> uzgodnioną z działem compliance (RODO / NIS2 / wymagania regulatora — patrz rozdz. 4.5).</li>
+<li class="task"><span class="cb" aria-hidden="true"></span><strong>Miejscem na backup/snapshoty</strong> poza serwerami Wazuh (rozdz. 4.6).</li>
+<li class="task"><span class="cb" aria-hidden="true"></span><strong>Siecią zarządzania lub VPN</strong> dla dostępu administracyjnego (rozdz. 5.6).</li>
+<li class="task"><span class="cb" aria-hidden="true"></span>Otwartymi w sieci portami z tabeli 2.4 (pomiędzy odpowiednimi strefami).</li>
+<li class="task"><span class="cb" aria-hidden="true"></span>Przeglądarką z dostępem do adresu przyszłego Dashboardu.</li>
+</ul>
+<p class="co co-tip">wszystkie hasła i klucze generowane podczas wdrożenia od razu zapisuj w firmowym menedżerze haseł (np. sejf zespołowy). W trakcie instalacji powstaje ich kilkanaście.</p>
+<hr />
+<h2 id="4-etap-1-projekt-architektury-wazuh">4. ETAP 1 — Projekt architektury Wazuh</h2>
+<p>Ten etap wykonujesz "na papierze", zanim utworzysz pierwszą maszynę. Błędy popełnione tutaj (za mało indexerów, wolne dyski, brak polityki retencji) są najdroższe w naprawie.</p>
+<h3 id="41-decyzja-jeden-serwer-czy-klaster">4.1 Decyzja: jeden serwer czy klaster?</h3>
+<p>Kryterium decyzji są <strong>dwa progi</strong>: liczba agentów oraz strumień zdarzeń <strong>EPS</strong> (Events Per Second).</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Środowisko</th>
+<th>EPS</th>
+<th>Liczba agentów (orientacyjnie)</th>
+<th>Managery</th>
+<th>Indexery</th>
+<th>Dashboardy</th>
+<th>Architektura</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Małe</td>
+<td>do ~200</td>
+<td>do ~150–200</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td><strong>standalone (all-in-one)</strong></td>
+</tr>
+<tr>
+<td>Średnie</td>
+<td>200–1000</td>
+<td>setki</td>
+<td>2 (master + worker)</td>
+<td><strong>3</strong></td>
+<td>1</td>
+<td>klaster</td>
+</tr>
+<tr>
+<td>Duże</td>
+<td>&gt; 1000</td>
+<td>tysiące</td>
+<td>2–3</td>
+<td>3–5</td>
+<td>1 (opcjonalnie 2)</td>
+<td>klaster</td>
+</tr>
+</tbody>
+</table></div>
+<p>Zasady, które warto znać przy podejmowaniu decyzji:</p>
+<ul>
+<li><strong>Standalone realnie obsłuży do ~200 końcówek.</strong> Na bardzo mocnej maszynie "dociągnie" do ~500, ale przestaje być efektywny — wyszukiwania i dashboard wyraźnie zwalniają.</li>
+<li><strong>Minimum 3 indexery w klastrze</strong> — to nie kaprys, lecz wymóg <strong>kworum</strong>: przy dwóch węzłach klaster OpenSearch nie rozstrzygnie, kto jest nadrzędny po awarii łącza (ryzyko split-brain).</li>
+<li>Jeśli organizacja <strong>rośnie</strong>, projektuj od razu klaster — konwersja standalone → klaster jest możliwa, ale wymaga regeneracji certyfikatów i przestoju.</li>
+<li>Dashboard praktycznie zawsze wystarczy <strong>jeden</strong> — zamiast stawiać drugą instancję "dla zarządu", lepiej rozdzielić uprawnienia rolami (rozdz. 8).</li>
+</ul>
+<h4 id="flowchart-decyzyjny">Flowchart decyzyjny</h4>
+
+<figure class="diagram" aria-label="Flowchart decyzyjny wyboru architektury">
+  <div class="dg-steps">
+    <div class="dg-step"><span class="dg-num">1</span>Inwentaryzacja źródeł logów</div>
+    <div class="dg-step"><span class="dg-num">2</span>Oszacuj EPS (rozdz. 4.2) i pomnóż <b>×2</b> na zapas</div>
+    <div class="dg-step"><span class="dg-num">3</span>Wybierz wariant według progów poniżej</div>
+  </div>
+  <div class="dg-branch">
+    <div class="dg-card ok">
+      <div class="dg-cond">EPS ≤ 200 <b>i</b> ≤ ~200 agentów<br><b>i</b> brak planów szybkiego wzrostu</div>
+      <div class="dg-res">STANDALONE<br><small>1 maszyna: Manager + Indexer + Dashboard</small></div>
+    </div>
+    <div class="dg-card mid">
+      <div class="dg-cond">EPS 200 – 1000</div>
+      <div class="dg-res">KLASTER ŚREDNI<br><small>2 managery (master + worker) · 3 indexery · 1 dashboard</small></div>
+    </div>
+    <div class="dg-card big">
+      <div class="dg-cond">EPS &gt; 1000</div>
+      <div class="dg-res">KLASTER DUŻY<br><small>2–3 managery · 3–5 indexerów · 1–2 dashboardy</small></div>
+    </div>
+  </div>
+  <div class="dg-steps">
+    <div class="dg-step"><span class="dg-num">4</span>Określ retencję (rozdz. 4.5) i policz dyski: <code>wolumen dzienny × retencja × 1,3</code></div>
+    <div class="dg-step"><span class="dg-num">5</span>Zaplanuj snapshoty / backup poza platformą (rozdz. 4.6)</div>
+  </div>
+  <figcaption>Progi możesz policzyć automatycznie w <a href="#kreator">kreatorze doboru architektury</a>.</figcaption>
+</figure>
+
+<h3 id="42-szacowanie-eps-metoda-praktyczna">4.2 Szacowanie EPS — metoda praktyczna</h3>
+<p>Przemnóż liczbę urządzeń przez typowe wartości EPS, zsumuj i <strong>pomnóż wynik ×2</strong> (zapas na rozwój, nowe integracje i wymagania NIS2):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Typ źródła</th>
+<th>EPS na urządzenie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Serwer Windows</td>
+<td>5–20 (z rozbudowanym audytem/Sysmon nawet 30)</td>
+</tr>
+<tr>
+<td>Stacja robocza Windows</td>
+<td>5–10</td>
+</tr>
+<tr>
+<td>Serwer/stacja Linux</td>
+<td>1–5</td>
+</tr>
+<tr>
+<td>Firewall / UTM (FortiGate, Palo Alto itp.)</td>
+<td><strong>50–300</strong> (zależnie od liczby reguł logujących)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Przykład:</strong> 20 serwerów Windows (×15 = 300) + 100 stacji Windows (×8 = 800) + 30 serwerów Linux (×3 = 90) + 2 UTM (×150 = 300) = <strong>1490 EPS</strong> → ×2 = <strong>~3000 EPS</strong> → środowisko duże, klaster z 3–5 indexerami.</p>
+<h3 id="43-okreslenie-liczby-maszyn-architektury-referencyjne">4.3 Określenie liczby maszyn — architektury referencyjne</h3>
+<p><strong>Wariant A — standalone (środowisko małe):</strong></p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Maszyna</th>
+<th>Komponenty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wazuh-aio</code></td>
+<td>Manager + Indexer + Dashboard + Filebeat</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Wariant B — klaster minimalny (środowisko średnie), 6 maszyn:</strong></p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Maszyna</th>
+<th>Komponenty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wazuh-master-1</code></td>
+<td>Manager (master) + Filebeat</td>
+</tr>
+<tr>
+<td><code>wazuh-worker-1</code></td>
+<td>Manager (worker) + Filebeat</td>
+</tr>
+<tr>
+<td><code>wazuh-indexer-1..3</code></td>
+<td>Wazuh Indexer (3 maszyny)</td>
+</tr>
+<tr>
+<td><code>wazuh-dashboard</code></td>
+<td>Dashboard (na tej maszynie wygodnie też generować certyfikaty)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Wariant C — multi-site (dwie lokalizacje), 7+ maszyn:</strong> po jednym (lub dwa) managerze na lokalizację, indexery obu lokalizacji spięte w <strong>jeden wspólny klaster</strong>, jeden centralny dashboard dla SOC. Rozdzielność danych między lokalizacjami realizuje się osobnymi wzorcami indeksów (np. <code>site-a-alerts-*</code>, <code>site-b-alerts-*</code>).</p>
+<p class="co co-tip">Manager i Indexer można technicznie postawić na jednej maszynie, ale przy skali "średniej+" rozdzielaj je — Indexer nie będzie konkurował z Managerem o RAM i dyski, a troubleshooting certyfikatów jest prostszy (osobne katalogi, osobne maszyny).</p>
+<h3 id="44-okreslenie-zasobow-cpu-ram-dysk">4.4 Określenie zasobów CPU / RAM / dysk</h3>
+<p>Co konsumuje każdy zasób:</p>
+<ul>
+<li><strong>CPU</strong> → parsowanie i dopasowywanie reguł (Manager) oraz indeksowanie (Indexer),</li>
+<li><strong>RAM</strong> → kolejki Managera i przede wszystkim <strong>heap JVM Indexera</strong> (OpenSearch operuje na RAM),</li>
+<li><strong>Dysk</strong> → indeksy i shardy — <strong>wymagane SSD/NVMe</strong> (ewentualnie szybki SAS 10–15k); HDD w Indexerze to gwarantowany problem wydajnościowy.</li>
+</ul>
+<p><strong>Przeliczniki referencyjne:</strong></p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Wielkość</th>
+<th>Wartość</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 EPS</td>
+<td>≈ 0,5–1 KB/s danych</td>
+</tr>
+<tr>
+<td>100 EPS</td>
+<td>≈ 4–8 GB logów <strong>dziennie</strong> (więcej przy Windows+Sysmon, mniej przy syslogu z Linuksa)</td>
+</tr>
+<tr>
+<td>100 EPS</td>
+<td>≈ 1 vCPU dla <strong>Managera</strong>; 1–2 vCPU dla <strong>Indexera</strong></td>
+</tr>
+<tr>
+<td>Narzut indeksowania</td>
+<td>wolumen surowy × <strong>1,3</strong></td>
+</tr>
+<tr>
+<td>Heap JVM Indexera</td>
+<td>50% RAM maszyny, ale <strong>nigdy więcej niż 32 GB</strong> (powyżej Garbage Collector "ubija" system)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Wzór na dysk Indexera:</strong></p>
+<pre><code>pojemność = wolumen_dzienny(GB) × retencja(dni) × 1,3  (+ zapas 20–30%)
+</code></pre>
+<p><strong>Przykładowe konfiguracje maszyn:</strong></p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Scenariusz</th>
+<th>vCPU</th>
+<th>RAM</th>
+<th>Dysk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lab / PoC (do 25 agentów)</td>
+<td>4</td>
+<td>8 GB</td>
+<td>50 GB (90 dni retencji)</td>
+</tr>
+<tr>
+<td>Standalone produkcyjny (~100–200 agentów)</td>
+<td>8</td>
+<td>16 GB</td>
+<td>wg wzoru (typowo 0,5–2 TB)</td>
+</tr>
+<tr>
+<td>Węzeł klastra przy ~1000 EPS łącznie</td>
+<td>8</td>
+<td>32 GB</td>
+<td>4–6 TB SSD (suma na klaster, dzielona przez węzły)</td>
+</tr>
+</tbody>
+</table></div>
+<p class="co co-warn"><strong>Najczęstsze błędy sizingu</strong> (z realnych wdrożeń): za mało indexerów (klaster "siada" pod obciążeniem), dyski HDD zamiast SSD, brak polityki retencji (dysk zapełnia się do 100% — patrz rozdz. 9.3), heap JVM &gt; 32 GB.</p>
+<h3 id="45-okreslenie-retencji-logow">4.5 Określenie retencji logów</h3>
+<ul>
+<li><strong>Punkt wyjścia: 90 dni</strong> danych "online" (przeszukiwalnych w Dashboardzie) — to typowy standard operacyjny SOC.</li>
+<li>Regulacje (NIS2, wymagania sektorowe, umowy z klientami) często wymagają <strong>do 2 lat</strong> — nie oznacza to jednak 2 lat na drogich dyskach NVMe.</li>
+<li>Zastosuj <strong>tiering (hot/warm/cold)</strong> i politykę <strong>ISM</strong> (Index State Management) w Indexerze:</li>
+</ul>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Dane</th>
+<th>Nośnik</th>
+<th>Typowy wiek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>hot</strong></td>
+<td>świeże, intensywnie przeszukiwane</td>
+<td>NVMe/SSD</td>
+<td>0–7 dni</td>
+</tr>
+<tr>
+<td><strong>warm</strong></td>
+<td>starsze, przeszukiwane sporadycznie</td>
+<td>SATA/wolniejszy SAS</td>
+<td>7–30 dni</td>
+</tr>
+<tr>
+<td><strong>cold</strong></td>
+<td>archiwum na potrzeby audytu</td>
+<td>tani storage, obiektowy, taśma</td>
+<td>30 dni – 2 lata</td>
+</tr>
+<tr>
+<td><strong>delete</strong></td>
+<td>po upływie retencji</td>
+<td>—</td>
+<td>automatyczne usunięcie (ISM)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Konfigurację polityki ISM wykonasz po instalacji (przykład gotowej polityki znajdziesz w rozdz. 8.7.1); na etapie projektu <strong>zapisz w dokumentacji uzgodnione wartości</strong> (ile dni hot/warm/cold, po ilu dniach delete).</p>
+<p class="co co-warn">indeksy tworzone są <strong>codziennie od nowa</strong> (<code>wazuh-alerts-4.x-RRRR.MM.DD</code>). Polityka retencji musi więc działać na wzorcu (<code>wazuh-alerts-*</code>), a nie na pojedynczym indeksie.</p>
+<h3 id="46-okreslenie-miejsca-na-snapshoty-backup">4.6 Określenie miejsca na snapshoty / backup</h3>
+<p>Zasady nadrzędne:</p>
+<ol>
+<li><strong>Replika ≠ backup.</strong> Repliki shardów w klastrze to odpowiednik RAID — chronią przed awarią węzła, nie przed skasowaniem danych, błędem ludzkim czy ransomware.</li>
+<li>Backup trzymaj <strong>poza platformą Wazuh</strong> (osobny serwer / storage), najlepiej w formule <strong>append-only / immutable</strong> (np. Borg backup na zdalny serwer w trybie append-only, storage obiektowy z Object Lock/WORM, taśmy dla archiwum długoterminowego).</li>
+<li>Backupuj <strong>dane nieodtwarzalne</strong>: indeksy (snapshoty Indexera) oraz konfigurację i klucze (Manager: <code>/var/ossec/etc</code>, w tym <code>client.keys</code>, certyfikaty, własne reguły). Sam system operacyjny i pakiety są odtwarzalne — najlepiej trzymać konfigurację jako kod (Ansible; oficjalne repozytorium <code>wazuh-ansible</code> zawiera gotowe role).</li>
+<li><strong>Backup nietestowany = brak backupu.</strong> Zaplanuj cykliczny test odtworzenia.</li>
+</ol>
+<p><strong>Ile miejsca zarezerwować:</strong> minimum 1× wielkość danych hot+warm dla snapshotów Indexera + kilkaset MB na konfiguracje. Przy wymaganiach dowodowych (integralność materiału dla organów) dodaj niezależny strumień kopii na storage typu WORM.</p>
+<p class="co co-check"><strong>Etap 1:</strong> masz zatwierdzony dokument projektowy zawierający: wariant architektury (A/B/C), listę maszyn z zasobami, wyliczenie EPS i pojemności dysków, wartości retencji per tier oraz lokalizację backupów.</p>
+<hr />
+<h2 id="5-etap-2-przygotowanie-infrastruktury">5. ETAP 2 — Przygotowanie infrastruktury</h2>
+<h3 id="51-utworzenie-maszyn-vm">5.1 Utworzenie maszyn VM</h3>
+<ol>
+<li>Utwórz maszyny zgodnie z tabelą z etapu 1 (wspierane hipernadzorcy: VMware ESXi/Workstation, Hyper-V, Proxmox, VirtualBox; dostępny jest też gotowy obraz OVA — pamiętaj o przeskalowaniu jego domyślnych zasobów 4 vCPU / 8 GB / 50 GB).</li>
+<li>Zainstaluj wspierany system (zalecane: Ubuntu LTS lub Rocky/AlmaLinux).</li>
+<li><strong>Nadaj każdej maszynie unikalny hostname</strong> — natychmiast, przed instalacją czegokolwiek:</li>
+</ol>
+<pre><code class="language-bash">hostnamectl set-hostname wazuh-indexer-1
+exec bash   # odświeżenie powłoki, aby przyjęła nową nazwę
+</code></pre>
+<p class="co co-warn">maszyna z hostname <code>localhost</code> to klasyczna pułapka — agent Linux o nazwie <code>localhost</code> nie podłączy się poprawnie (konflikt nazw), a w klastrze nazwy węzłów muszą być rozróżnialne.</p>
+<ol start="4">
+<li>Zaktualizuj system i zainstaluj narzędzia bazowe:</li>
+</ol>
+<pre><code class="language-bash">apt update &amp;&amp; apt upgrade -y &amp;&amp; apt install -y curl nano tar gnupg
+</code></pre>
+<ol start="5">
+<li>Dla maszyn Indexera ustaw parametr jądra wymagany przez OpenSearch:</li>
+</ol>
+<pre><code class="language-bash">echo &quot;vm.max_map_count=262144&quot; &gt;&gt; /etc/sysctl.conf
+sysctl -p
+</code></pre>
+<p class="co co-tip">dla Indexera wydziel <strong>osobną partycję/wolumen na dane</strong> (<code>/var/lib/wazuh-indexer</code>). Zapełnienie partycji systemowej przez indeksy potrafi zablokować API i usługi całej platformy.</p>
+<h3 id="52-konfiguracja-dns">5.2 Konfiguracja DNS</h3>
+<ul>
+<li>Utwórz w wewnętrznym DNS rekordy A dla wszystkich maszyn (<code>wazuh-master-1.firma.local</code> itd.).</li>
+<li><strong>Agentom podawaj FQDN managera zamiast IP</strong> — przy awarii lub migracji managera wystarczy podmienić rekord DNS, zamiast rekonfigurować setki agentów.</li>
+<li>W konfiguracjach klastra możesz używać FQDN lub IP — jeśli FQDN, wewnętrzny DNS staje się zależnością krytyczną (zapewnij mu redundancję).</li>
+</ul>
+<p class="co co-warn">jeżeli DNS w organizacji bywa zawodny, w plikach konfiguracyjnych klastra (indexer ↔ indexer, manager ↔ manager) użyj adresów IP, a FQDN zostaw tylko dla agentów i dostępu administracyjnego.</p>
+<h3 id="53-konfiguracja-ntp">5.3 Konfiguracja NTP</h3>
+<p>Synchronizacja czasu jest <strong>krytyczna</strong>: rozjazd zegarów psuje korelację zdarzeń, ważność certyfikatów TLS i spójność indeksów dziennych.</p>
+<pre><code class="language-bash">apt install -y chrony
+# w /etc/chrony/chrony.conf wskaż firmowe serwery NTP:
+#   server ntp1.firma.local iburst
+#   server ntp2.firma.local iburst
+systemctl enable --now chrony
+chronyc tracking          # weryfikacja: offset rzędu milisekund
+</code></pre>
+<p>Wykonaj na <strong>każdej</strong> maszynie platformy. Docelowo również agenci powinni mieć poprawny czas (GPO / konfiguracja systemowa).</p>
+<h3 id="54-konfiguracja-firewalli">5.4 Konfiguracja firewalli</h3>
+<p>Zaimplementuj zasadę najmniejszego dostępu w oparciu o tabelę portów (rozdz. 2.4):</p>
+<ul>
+<li>sieć agentów → managery: <strong>1514, 1515</strong> (1515 w klastrze tylko do mastera, jeśli nie używasz load balancera),</li>
+<li>managery ↔ managery: <strong>1516</strong>,</li>
+<li>managery → indexery: <strong>9200</strong>,</li>
+<li>indexery ↔ indexery: <strong>9200, 9300–9400</strong>,</li>
+<li>dashboard → indexery: <strong>9200</strong>; dashboard → master: <strong>55000</strong>,</li>
+<li>sieć administracyjna/VPN → dashboard: <strong>443</strong>; → SSH: <strong>22</strong>.</li>
+</ul>
+<p>Przykład (iptables, maszyna managera):</p>
+<pre><code class="language-bash"># NAJPIERW reguła dla połączeń ustanowionych — inaczej zerwiesz własną sesję SSH!
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A INPUT -p tcp --dport 22    -s &lt;SIEC_ADMIN&gt;    -j ACCEPT
+iptables -A INPUT -p tcp --dport 1514  -s &lt;SIEC_AGENTOW&gt;  -j ACCEPT
+iptables -A INPUT -p tcp --dport 1515  -s &lt;SIEC_AGENTOW&gt;  -j ACCEPT
+iptables -A INPUT -p tcp --dport 1516  -s &lt;SIEC_KLASTRA&gt;  -j ACCEPT
+iptables -A INPUT -p tcp --dport 55000 -s &lt;IP_DASHBOARDU&gt; -j ACCEPT
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT ACCEPT
+</code></pre>
+<p class="co co-warn"><strong>przypadek brzegowy:</strong> wklejenie polityki <code>INPUT DROP</code> <strong>przed</strong> regułą <code>ESTABLISHED,RELATED</code> natychmiast odcina Twoją sesję SSH. Zachowaj kolejność jak wyżej i miej dostęp konsolowy (out-of-band) na wypadek pomyłki.</p>
+<p class="co co-warn"><strong>SELinux:</strong> na systemach RHEL-owych z aktywnym SELinux dodaj porty do kontekstu, inaczej usługi zostaną zablokowane:</p>
+<pre><code class="language-bash">semanage port -a -t wazuh_port_t -p tcp 1514
+restorecon -RFvv /var/ossec/
+</code></pre>
+<h3 id="55-przygotowanie-kont-administracyjnych">5.5 Przygotowanie kont administracyjnych</h3>
+<ul>
+<li>Utwórz <strong>imienne konta systemowe</strong> z <code>sudo</code> dla każdego administratora (rozliczalność); nie pracuj na współdzielonym <code>root</code>.</li>
+<li>Utwardź SSH na wszystkich maszynach platformy:</li>
+</ul>
+<pre><code class="language-bash"># /etc/ssh/sshd_config
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+PasswordAuthentication no
+</code></pre>
+<ul>
+<li>Konta do samej aplikacji Wazuh (Admin/SOC/Audytor) utworzysz w etapie 5 (rozdz. 8) — na razie zaplanuj, <strong>kto</strong> ma jaką rolę pełnić.</li>
+</ul>
+<p class="co co-tip">wpisane w konsolę hasła zostają w historii powłoki. Wrażliwe operacje wykonuj tak, by hasło nie było argumentem polecenia, a po pracach wyczyść historię (<code>history -c</code>).</p>
+<h3 id="56-dostep-administracyjny-przez-vpn-siec-wewnetrzna">5.6 Dostęp administracyjny przez VPN / sieć wewnętrzną</h3>
+<p><strong>Żaden komponent Wazuh nie może być wystawiony bezpośrednio do internetu.</strong> Dotyczy to w szczególności Dashboardu (443), API (55000) i Indexera (9200), ale także portów agentowych — w przeszłości publicznie wystawiony port 1514 był wektorem ataku RCE na platformę.</p>
+<ul>
+<li>Dostęp administracyjny (SSH, Dashboard) realizuj <strong>wyłącznie</strong> z sieci zarządzania lub przez VPN (zalecany <strong>WireGuard</strong> — lekki i prosty w utrzymaniu).</li>
+<li>Agenci spoza sieci firmowej (laptopy zdalne, oddziały) → tunel VPN site-to-site/klientowy albo <strong>mTLS</strong> (certyfikat kliencki dla agenta) — nigdy "goły" port na publicznym IP.</li>
+<li>Nie binduj usług na <code>0.0.0.0</code>, jeśli maszyna ma interfejs publiczny — wskazuj konkretny adres wewnętrzny (przykłady w rozdz. 7).</li>
+</ul>
+<p class="co co-check"><strong>Etap 2:</strong> wszystkie maszyny utworzone, unikalne hostname, czas zsynchronizowany (<code>chronyc tracking</code>), rekordy DNS rozwiązują się poprawnie, firewalle przepuszczają wymagane porty między strefami (sprawdź np. <code>nc -zv &lt;IP&gt; 9200</code>), dostęp administracyjny działa wyłącznie przez VPN/sieć zarządzania.</p>
+<hr />
+<h2 id="6-etap-3-instalacja-wazuh">6. ETAP 3 — Instalacja Wazuh</h2>
+<p>Instalację opisujemy w dwóch wariantach:</p>
+<ul>
+<li><strong>Wariant A — standalone (all-in-one)</strong>: jedna maszyna, instalator asystowany. Idealny dla środowisk małych i PoC.</li>
+<li><strong>Wariant B — dystrybuowany</strong>: osobne maszyny, komponent po komponencie. Wykonasz go w środowiskach klastrowych (i kontynuujesz w etapie 4).</li>
+</ul>
+<p>W obu wariantach ustaw najpierw zmienną wersji:</p>
+<pre><code class="language-bash">export WAZUH_VERSION=4.14
+</code></pre>
+<p class="co co-warn">skrypty instalacyjne pobierasz z internetu — <strong>przejrzyj je przed uruchomieniem</strong> (higiena łańcucha dostaw). Dodatkowo instalator odmawia pracy na maszynach z publicznym adresem IP (komunikat "The IP is public") — to celowe zabezpieczenie; produkcyjnie używaj adresacji prywatnej.</p>
+<h3 id="61-wariant-a-instalacja-standalone-assisted">6.1 Wariant A — instalacja standalone (assisted)</h3>
+<pre><code class="language-bash">curl -sO https://packages.wazuh.com/$WAZUH_VERSION/wazuh-install.sh
+# przejrzyj skrypt:
+less wazuh-install.sh
+bash ./wazuh-install.sh -a
+</code></pre>
+<p>Parametr <code>-a</code> (all-in-one) instaluje kolejno: <strong>certyfikaty TLS → Indexer → Manager (+Filebeat) → Dashboard</strong> i na końcu wypisuje dane logowania:</p>
+<pre><code>INFO: You can access the web interface https://&lt;IP&gt;
+    User: admin
+    Password: &lt;WYGENEROWANE_HASLO&gt;
+</code></pre>
+<p>Zapisz hasło w menedżerze haseł. Przejdź do rozdz. 6.3 (zmiana haseł) i 6.4 (testy).</p>
+<h3 id="62-wariant-b-instalacja-dystrybuowana-krok-po-kroku">6.2 Wariant B — instalacja dystrybuowana krok po kroku</h3>
+<p>Kolejność jest nienegocjowalna: <strong>(1) certyfikaty → (2) wszystkie Indexery → (3) inicjalizacja security → (4) Managery + Filebeat → (5) Dashboard.</strong> Indexer musi działać, zanim uruchomisz Filebeat i Dashboard.</p>
+
+<figure class="diagram" aria-label="Kolejność instalacji dystrybuowanej">
+  <ol class="dg-chain">
+    <li><b>Certyfikaty TLS</b><small>wazuh-certs-tool</small></li>
+    <li><b>Wazuh Indexer</b><small>wszystkie węzły</small></li>
+    <li><b>Security init</b><small>indexer-security-init.sh</small></li>
+    <li><b>Manager + Filebeat</b><small>master, potem workery</small></li>
+    <li><b>Dashboard</b><small>opensearch_dashboards.yml</small></li>
+    <li><b>Hasła + testy</b><small>wazuh-passwords-tool</small></li>
+  </ol>
+  <figcaption>Kolejność jest nienegocjowalna — Indexer musi działać, zanim uruchomisz Filebeat i Dashboard.</figcaption>
+</figure>
+
+<h4 id="621-krok-1-certyfikaty-tls-dla-wszystkich-komponentow">6.2.1 Krok 1 — certyfikaty TLS dla wszystkich komponentów</h4>
+<p>Certyfikaty generujesz <strong>raz, na jednej maszynie</strong> (wygodnie: przyszły dashboard), dla całej platformy.</p>
+<pre><code class="language-bash">curl -sO https://packages.wazuh.com/$WAZUH_VERSION/wazuh-certs-tool.sh
+curl -sO https://packages.wazuh.com/$WAZUH_VERSION/config.yml
+</code></pre>
+<p>Wypełnij <code>config.yml</code> — <strong>nazwy węzłów muszą być dokładnie tymi, których użyjesz później w konfiguracjach</strong> (opensearch.yml, ossec.conf):</p>
+<pre><code class="language-yaml">nodes:
+  indexer:
+    - name: wazuh-indexer-1
+      ip: &quot;10.0.10.11&quot;
+    - name: wazuh-indexer-2
+      ip: &quot;10.0.10.12&quot;
+    - name: wazuh-indexer-3
+      ip: &quot;10.0.10.13&quot;
+  server:
+    - name: wazuh-master-1
+      ip: &quot;10.0.10.21&quot;
+      node_type: master
+    - name: wazuh-worker-1
+      ip: &quot;10.0.10.22&quot;
+      node_type: worker
+  dashboard:
+    - name: wazuh-dashboard
+      ip: &quot;10.0.10.31&quot;
+</code></pre>
+<blockquote>
+<p>Przy <strong>jednym</strong> managerze pomiń pole <code>node_type</code>. Przy dwóch i więcej — oznaczenie <code>master</code>/<code>worker</code> jest obowiązkowe.</p>
+</blockquote>
+<p>Wygeneruj i spakuj certyfikaty:</p>
+<pre><code class="language-bash">bash ./wazuh-certs-tool.sh -A
+tar -cvf ./wazuh-certificates.tar -C ./wazuh-certificates/ .
+</code></pre>
+<p>Powstaje m.in.: <code>root-ca.pem</code> (i klucz), po parze <code>&lt;nazwa-węzła&gt;.pem</code>/<code>&lt;nazwa-węzła&gt;-key.pem</code> dla każdego komponentu oraz <code>admin.pem</code>/<code>admin-key.pem</code> (certyfikat administracyjny Indexera).</p>
+<p>Rozprowadź archiwum na wszystkie maszyny:</p>
+<pre><code class="language-bash">scp ./wazuh-certificates.tar root@10.0.10.11:/root/
+# ... i analogicznie na pozostałe węzły
+</code></pre>
+<p class="co co-warn">- Certyfikaty są domyślnie ważne <strong>3650 dni (10 lat)</strong> — dla zgodności z NIS2/polityką PKI rozważ skrócenie i wpisz datę ważności do dokumentacji (samo nie wygaśnie "z alarmem"; patrz rozdz. 9.9).
+- Skrypty generujące to rozwiązanie wygodne, ale w organizacjach z własnym <strong>PKI</strong> certyfikaty powinny pochodzić z firmowego CA (możesz podać własne CA do podpisu; do lekkiego, samodzielnego PKI z ACME warto rozważyć np. Smallstep CA).</p>
+<h4 id="622-krok-2-instalacja-wazuh-indexer-kazdy-weze">6.2.2 Krok 2 — instalacja Wazuh Indexer (każdy węzeł)</h4>
+<p>Repozytorium pakietów (Debian/Ubuntu):</p>
+<pre><code class="language-bash">curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+echo &quot;deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main&quot; \
+  &gt; /etc/apt/sources.list.d/wazuh.list
+apt update &amp;&amp; apt install -y wazuh-indexer
+</code></pre>
+<p>Edytuj <code>/etc/wazuh-indexer/opensearch.yml</code>:</p>
+<pre><code class="language-yaml">network.host: &quot;10.0.10.11&quot;            # KONKRETNY adres tego węzła — nie 0.0.0.0!
+node.name: &quot;wazuh-indexer-1&quot;          # dokładnie jak w config.yml certyfikatów
+cluster.name: &quot;wazuh-cluster&quot;
+
+cluster.initial_master_nodes:
+  - &quot;wazuh-indexer-1&quot;
+  - &quot;wazuh-indexer-2&quot;
+  - &quot;wazuh-indexer-3&quot;
+
+discovery.seed_hosts:                  # MUSI być odkomentowane w klastrze!
+  - &quot;10.0.10.11&quot;
+  - &quot;10.0.10.12&quot;
+  - &quot;10.0.10.13&quot;
+
+path.data: /var/lib/wazuh-indexer
+path.logs: /var/log/wazuh-indexer
+
+plugins.security.nodes_dn:
+  - &quot;CN=wazuh-indexer-1,OU=Wazuh,O=Wazuh,L=California,C=US&quot;
+  - &quot;CN=wazuh-indexer-2,OU=Wazuh,O=Wazuh,L=California,C=US&quot;
+  - &quot;CN=wazuh-indexer-3,OU=Wazuh,O=Wazuh,L=California,C=US&quot;
+</code></pre>
+<blockquote>
+<p>Instalacja pojedynczego indexera: zostaw pojedyncze wpisy. Sekcja <code>nodes_dn</code> musi odpowiadać DN z wygenerowanych certyfikatów (przy narzędziu Wazuh: <code>OU=Wazuh,O=Wazuh,L=California,C=US</code>).</p>
+</blockquote>
+<p>Ustaw heap JVM w <code>/etc/wazuh-indexer/jvm.options</code> (50% RAM, maks. 32 GB — obie wartości identyczne):</p>
+<pre><code>-Xms16g
+-Xmx16g
+</code></pre>
+<p>Zainstaluj certyfikaty węzła:</p>
+<pre><code class="language-bash">NODE_NAME=wazuh-indexer-1
+mkdir /etc/wazuh-indexer/certs
+tar -xf /root/wazuh-certificates.tar -C /etc/wazuh-indexer/certs/ \
+  ./$NODE_NAME.pem ./$NODE_NAME-key.pem ./admin.pem ./admin-key.pem ./root-ca.pem
+mv -n /etc/wazuh-indexer/certs/$NODE_NAME.pem      /etc/wazuh-indexer/certs/indexer.pem
+mv -n /etc/wazuh-indexer/certs/$NODE_NAME-key.pem  /etc/wazuh-indexer/certs/indexer-key.pem
+chmod 500 /etc/wazuh-indexer/certs
+chmod 400 /etc/wazuh-indexer/certs/*
+chown -R wazuh-indexer:wazuh-indexer /etc/wazuh-indexer/certs
+</code></pre>
+<p>Uruchom:</p>
+<pre><code class="language-bash">systemctl daemon-reload
+systemctl enable --now wazuh-indexer
+</code></pre>
+<p>Powtórz krok 2 na pozostałych węzłach Indexera (zmieniając <code>NODE_NAME</code>, <code>network.host</code>, <code>node.name</code>).</p>
+<h4 id="623-krok-3-inicjalizacja-security-klastra-indexerow">6.2.3 Krok 3 — inicjalizacja security klastra Indexerów</h4>
+<p>Na <strong>jednym</strong> (dowolnym, zwykle pierwszym) węźle:</p>
+<pre><code class="language-bash">/usr/share/wazuh-indexer/bin/indexer-security-init.sh
+</code></pre>
+<p class="co co-check"></p>
+<pre><code class="language-bash">curl -k -u admin:admin https://10.0.10.11:9200
+curl -k -u admin:admin https://10.0.10.11:9200/_cat/nodes?v
+curl -k -u admin:admin https://10.0.10.11:9200/_cluster/health?pretty
+</code></pre>
+<p>Oczekiwane: odpowiedź JSON z nazwą klastra <code>wazuh-cluster</code>, na liście <code>_cat/nodes</code> <strong>wszystkie</strong> węzły, <code>status</code> klastra <code>green</code>. (Daj węzłom kilkanaście sekund po starcie, zanim uznasz błędy API za problem.)</p>
+<h4 id="624-krok-4-instalacja-wazuh-manager-filebeat-master-potem-workery">6.2.4 Krok 4 — instalacja Wazuh Manager + Filebeat (master, potem workery)</h4>
+<p>Na maszynie managera (repozytorium jak wyżej):</p>
+<pre><code class="language-bash">apt install -y wazuh-manager filebeat
+systemctl daemon-reload
+systemctl enable --now wazuh-manager
+</code></pre>
+<p>Konfiguracja Filebeat:</p>
+<pre><code class="language-bash">curl -so /etc/filebeat/filebeat.yml \
+  https://packages.wazuh.com/$WAZUH_VERSION/tpl/wazuh/filebeat/filebeat.yml
+curl -so /etc/filebeat/wazuh-template.json \
+  https://raw.githubusercontent.com/wazuh/wazuh/v$WAZUH_VERSION.0/extensions/elasticsearch/7.x/wazuh-template.json
+chmod go+r /etc/filebeat/wazuh-template.json
+curl -s https://packages.wazuh.com/4.x/filebeat/wazuh-filebeat-0.3.tar.gz | \
+  tar -xvz -C /usr/share/filebeat/module
+</code></pre>
+<p>W <code>/etc/filebeat/filebeat.yml</code> wskaż <strong>wszystkie</strong> indexery (nazwa <code>output.elasticsearch</code> jest historyczna — tak ma być):</p>
+<pre><code class="language-yaml">output.elasticsearch:
+  hosts: [&quot;10.0.10.11:9200&quot;, &quot;10.0.10.12:9200&quot;, &quot;10.0.10.13:9200&quot;]
+  protocol: https
+  username: ${username}
+  password: ${password}
+  ssl.certificate_authorities: [&quot;/etc/filebeat/certs/root-ca.pem&quot;]
+  ssl.certificate: &quot;/etc/filebeat/certs/filebeat.pem&quot;
+  ssl.key: &quot;/etc/filebeat/certs/filebeat-key.pem&quot;
+</code></pre>
+<p>Poświadczenia Filebeat trzymaj w <strong>keystore</strong> (nie w pliku jawnym):</p>
+<pre><code class="language-bash">filebeat keystore create
+echo admin | filebeat keystore add username --stdin --force
+echo admin | filebeat keystore add password --stdin --force   # po zmianie haseł zaktualizujesz
+</code></pre>
+<p>Certyfikaty Filebeat (na maszynie managera):</p>
+<pre><code class="language-bash">NODE_NAME=wazuh-master-1
+mkdir /etc/filebeat/certs
+tar -xf /root/wazuh-certificates.tar -C /etc/filebeat/certs/ \
+  ./$NODE_NAME.pem ./$NODE_NAME-key.pem ./root-ca.pem
+mv -n /etc/filebeat/certs/$NODE_NAME.pem     /etc/filebeat/certs/filebeat.pem
+mv -n /etc/filebeat/certs/$NODE_NAME-key.pem /etc/filebeat/certs/filebeat-key.pem
+chmod 500 /etc/filebeat/certs
+chmod 400 /etc/filebeat/certs/*
+systemctl enable --now filebeat
+</code></pre>
+<p class="co co-check"></p>
+<pre><code class="language-bash">filebeat test output
+</code></pre>
+<p>Oczekiwane: dla każdego indexera <code>connection ... OK</code>, <code>TLS ... OK</code>, <code>talk to server ... OK</code>.</p>
+<p>Powtórz na workerze (z jego <code>NODE_NAME</code>). Konfigurację klastra managerów (<code>&lt;cluster&gt;</code> w <code>ossec.conf</code>) wykonasz w etapie 4 — w środowisku jednomanagerowym pomijasz ją całkowicie.</p>
+<h4 id="625-krok-5-instalacja-wazuh-dashboard">6.2.5 Krok 5 — instalacja Wazuh Dashboard</h4>
+<pre><code class="language-bash">apt install -y wazuh-dashboard
+</code></pre>
+<p>Edytuj <code>/etc/wazuh-dashboard/opensearch_dashboards.yml</code>:</p>
+<pre><code class="language-yaml">server.host: &quot;10.0.10.31&quot;      # konkretny interfejs — nie 0.0.0.0
+server.port: 443
+opensearch.hosts:
+  - &quot;https://10.0.10.11:9200&quot;
+  - &quot;https://10.0.10.12:9200&quot;
+  - &quot;https://10.0.10.13:9200&quot;
+opensearch.ssl.verificationMode: certificate
+</code></pre>
+<p>Certyfikaty i start:</p>
+<pre><code class="language-bash">NODE_NAME=wazuh-dashboard
+mkdir /etc/wazuh-dashboard/certs
+tar -xf /root/wazuh-certificates.tar -C /etc/wazuh-dashboard/certs/ \
+  ./$NODE_NAME.pem ./$NODE_NAME-key.pem ./root-ca.pem
+mv -n /etc/wazuh-dashboard/certs/$NODE_NAME.pem     /etc/wazuh-dashboard/certs/dashboard.pem
+mv -n /etc/wazuh-dashboard/certs/$NODE_NAME-key.pem /etc/wazuh-dashboard/certs/dashboard-key.pem
+chmod 500 /etc/wazuh-dashboard/certs
+chmod 400 /etc/wazuh-dashboard/certs/*
+chown -R wazuh-dashboard:wazuh-dashboard /etc/wazuh-dashboard/certs
+systemctl daemon-reload
+systemctl enable --now wazuh-dashboard
+</code></pre>
+<p>Na koniec wskaż Dashboardowi API managera w <code>/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml</code>:</p>
+<pre><code class="language-yaml">hosts:
+  - default:
+      url: https://10.0.10.21
+      port: 55000
+      username: wazuh-wui
+      password: &lt;HASLO_WAZUH_WUI&gt;
+      run_as: true
+</code></pre>
+<pre><code class="language-bash">systemctl restart wazuh-dashboard
+</code></pre>
+<h3 id="63-zmiana-hase-domyslnych">6.3 Zmiana haseł domyślnych</h3>
+<p>Po instalacji hasła wszystkich kont wewnętrznych znajdują się w pliku <code>wazuh-passwords.txt</code> (wewnątrz archiwum <code>wazuh-install-files.tar</code> przy instalacji asystowanej):</p>
+<pre><code class="language-bash">tar -axf wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt -O | less
+</code></pre>
+<p>Konta, które musisz znać:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Konto</th>
+<th>Warstwa</th>
+<th>Rola</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>admin</code></td>
+<td>Indexer/Dashboard</td>
+<td>pełny administrator (konto wbudowane — patrz rozdz. 8.3)</td>
+</tr>
+<tr>
+<td><code>kibanaserver</code>, <code>kibanaro</code>, <code>filebeat</code></td>
+<td>Indexer</td>
+<td>konta techniczne komponentów — nie loguj się nimi</td>
+</tr>
+<tr>
+<td><code>wazuh</code>, <code>wazuh-wui</code></td>
+<td>Wazuh API (55000)</td>
+<td>konta API — <code>wazuh-wui</code> używa Dashboard</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Zmiana wszystkich haseł jednym poleceniem</strong> (zalecane od razu po instalacji):</p>
+<pre><code class="language-bash">bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passwords-tool.sh -a
+</code></pre>
+<p>Skrypt wygeneruje nowe hasła dla wszystkich kont i sam zaktualizuje je w komponentach (robi też backup użytkowników wewnętrznych). Pojedyncze konto: <code>wazuh-passwords-tool.sh -u admin -p '&lt;NOWE_HASLO&gt;'</code>.</p>
+<p>Po zmianie haseł:</p>
+<pre><code class="language-bash">systemctl restart wazuh-manager wazuh-dashboard
+</code></pre>
+<p class="co co-warn"><strong>bardzo częsty przypadek:</strong> po <code>wazuh-passwords-tool.sh -a</code> Dashboard potrafi zgłaszać <code>Internal server error</code> mimo restartu usług — <strong>wyczyść ciasteczka/cache przeglądarki</strong> i zaloguj się ponownie.</p>
+<p class="co co-warn">przy zmianie hasła konta <code>filebeat</code>/<code>admin</code> zaktualizuj <strong>keystore Filebeat</strong> na wszystkich managerach (rozdz. 6.2.4), inaczej alerty przestaną spływać do Indexera.</p>
+<p class="co co-tip">- Po zapisaniu haseł w menedżerze haseł <strong>usuń <code>wazuh-install-files.tar</code> z serwera</strong> — to gotowy "prezent" dla atakującego.
+- W klastrze narzędzie zmienia hasła na węźle, na którym je uruchomiono — zsynchronizuj konfigurację na pozostałe węzły.
+- Instalacje Docker/OVA często mają hasła typu <code>admin/admin</code>, <code>SecretPassword</code> — <strong>zmień je przed</strong> podłączeniem pierwszego agenta.</p>
+<h3 id="64-test-dziaania-platformy">6.4 Test działania platformy</h3>
+<p>Wykonaj kolejno:</p>
+<p><strong>1. Usługi:</strong></p>
+<pre><code class="language-bash">systemctl status wazuh-indexer wazuh-manager filebeat wazuh-dashboard
+</code></pre>
+<p><strong>2. Indexer i klaster:</strong></p>
+<pre><code class="language-bash">curl -k -u admin:&lt;HASLO&gt; https://&lt;IP_INDEXERA&gt;:9200/_cluster/health?pretty   # status: green
+curl -k -u admin:&lt;HASLO&gt; https://&lt;IP_INDEXERA&gt;:9200/_cat/indices/wazuh-*?v
+</code></pre>
+<p><strong>3. Potok Manager → Indexer:</strong></p>
+<pre><code class="language-bash">filebeat test output          # wszystkie pozycje OK
+tail -n 50 /var/ossec/logs/ossec.log   # brak wpisów ERROR/CRITICAL
+</code></pre>
+<p><strong>4. Dashboard:</strong> otwórz <code>https://&lt;IP_DASHBOARDU&gt;</code>, zaloguj się kontem <code>admin</code> (nowym hasłem). Ostrzeżenie przeglądarki o certyfikacie jest oczekiwane przy self-signed (możesz zaimportować <code>root-ca.pem</code> do zaufanych lub wystawić certyfikat z firmowego CA).</p>
+<p><strong>5. Test end-to-end — podłącz pierwszego agenta:</strong></p>
+<p>W Dashboardzie: <em>Server management → Endpoint Summary → Deploy new agent</em> → wybierz system i skopiuj wygenerowane polecenie, np. dla Ubuntu:</p>
+<pre><code class="language-bash">wget https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_$WAZUH_VERSION.0-1_amd64.deb &amp;&amp; \
+  WAZUH_MANAGER='wazuh-master-1.firma.local' dpkg -i ./wazuh-agent_$WAZUH_VERSION.0-1_amd64.deb
+systemctl daemon-reload &amp;&amp; systemctl enable --now wazuh-agent
+</code></pre>
+<p class="co co-check"><strong>Etap 3:</strong> agent widoczny w Dashboardzie jako <strong>Active</strong>, w module <em>Threat Hunting/Discover</em> pojawiają się zdarzenia agenta, <code>_cluster/health</code> = <code>green</code>, wszystkie hasła domyślne zmienione, plik instalacyjny z hasłami usunięty.</p>
+<hr />
+<h2 id="7-etap-4-konfiguracja-klastra-wysokiej-dostepnosci">7. ETAP 4 — Konfiguracja klastra / wysokiej dostępności</h2>
+<p>Ten etap zakłada, że masz zainstalowane komponenty według wariantu B (rozdz. 6.2). Składa się z czterech elementów: klaster Indexerów (7.1), klaster Managerów (7.2), kierowanie agentów (7.3) i Dashboard (7.4), po czym następują testy (7.5–7.6) i dokumentacja (7.7).</p>
+<h3 id="71-klaster-indexerow-dokonczenie-repliki">7.1 Klaster Indexerów — dokończenie (repliki!)</h3>
+<p>Sam klaster z rozdz. 6.2.2–6.2.3 replikuje metadane, ale <strong>domyślnie indeksy Wazuh mają 3 shardy primary i 0 replik</strong> — co oznacza, że <strong>awaria jednego węzła powoduje utratę dostępności danych (klaster w stanie RED)</strong>. Wysoka dostępność wymaga replik:</p>
+<p><strong>1. Ustaw repliki dla nowych indeksów</strong> — edytuj szablon <code>/etc/filebeat/wazuh-template.json</code> na managerach (sekcja <code>settings</code>):</p>
+<pre><code class="language-json">&quot;settings&quot;: {
+  &quot;index.number_of_shards&quot;: 3,
+  &quot;index.number_of_replicas&quot;: 1
+}
+</code></pre>
+<p>i przeładuj szablon:</p>
+<pre><code class="language-bash">filebeat setup --index-management
+</code></pre>
+<p><strong>2. Ustaw repliki dla istniejących indeksów</strong> (Dashboard → <em>Indexer management → Dev Tools</em>):</p>
+<pre><code>PUT wazuh-alerts-*/_settings
+{ &quot;index&quot;: { &quot;number_of_replicas&quot;: 1 } }
+</code></pre>
+<p>Zasady doboru:</p>
+<ul>
+<li>1 węzeł → <strong>0 replik</strong> (replika bez drugiego węzła tylko wprowadza status <code>yellow</code>),</li>
+<li>2–3 węzły → <strong>1 replika</strong> (minimum produkcyjne),</li>
+<li>większe klastry → 3–6 shardów primary i ≥2 repliki na indeks; nie mnóż shardów ponad potrzebę (każdy shard to narzut RAM/CPU).</li>
+</ul>
+<p class="co co-check"></p>
+<pre><code class="language-bash">curl -k -u admin:&lt;HASLO&gt; &quot;https://&lt;IP&gt;:9200/_cat/shards/wazuh-alerts-*?v&quot;
+# każdy shard 'p' (primary) ma odpowiadający shard 'r' (replica) na INNYM węźle
+curl -k -u admin:&lt;HASLO&gt; &quot;https://&lt;IP&gt;:9200/_cluster/health?pretty&quot;   # green
+</code></pre>
+<h3 id="72-klaster-managerow-master-workery">7.2 Klaster Managerów (master + workery)</h3>
+<p><strong>1. Wygeneruj wspólny klucz klastra</strong> (na dowolnej maszynie):</p>
+<pre><code class="language-bash">openssl rand -hex 16
+# przykład: c98b62a9b6169ac5f67dae55ae4a9088
+</code></pre>
+<p>Klucz jest <strong>obowiązkowy i identyczny</strong> na wszystkich węzłach — uwierzytelnia komunikację klastrową (nikt nie podepnie "obcego" managera).</p>
+<p><strong>2. Konfiguracja MASTERA</strong> — <code>/var/ossec/etc/ossec.conf</code>, sekcja <code>&lt;cluster&gt;</code>:</p>
+<pre><code class="language-xml">&lt;cluster&gt;
+    &lt;name&gt;wazuh&lt;/name&gt;
+    &lt;node_name&gt;wazuh-master-1&lt;/node_name&gt;
+    &lt;node_type&gt;master&lt;/node_type&gt;
+    &lt;key&gt;c98b62a9b6169ac5f67dae55ae4a9088&lt;/key&gt;
+    &lt;port&gt;1516&lt;/port&gt;
+    &lt;bind_addr&gt;10.0.10.21&lt;/bind_addr&gt;
+    &lt;nodes&gt;
+        &lt;node&gt;10.0.10.21&lt;/node&gt;
+    &lt;/nodes&gt;
+    &lt;hidden&gt;no&lt;/hidden&gt;
+    &lt;disabled&gt;no&lt;/disabled&gt;
+&lt;/cluster&gt;
+</code></pre>
+<p><strong>3. Konfiguracja WORKERA</strong> (każdego):</p>
+<pre><code class="language-xml">&lt;cluster&gt;
+    &lt;name&gt;wazuh&lt;/name&gt;
+    &lt;node_name&gt;wazuh-worker-1&lt;/node_name&gt;
+    &lt;node_type&gt;worker&lt;/node_type&gt;
+    &lt;key&gt;c98b62a9b6169ac5f67dae55ae4a9088&lt;/key&gt;
+    &lt;port&gt;1516&lt;/port&gt;
+    &lt;bind_addr&gt;10.0.10.22&lt;/bind_addr&gt;
+    &lt;nodes&gt;
+        &lt;node&gt;10.0.10.21&lt;/node&gt;   &lt;!-- ZAWSZE adres MASTERA, także na workerze --&gt;
+    &lt;/nodes&gt;
+    &lt;hidden&gt;no&lt;/hidden&gt;
+    &lt;disabled&gt;no&lt;/disabled&gt;
+&lt;/cluster&gt;
+</code></pre>
+<p>Objaśnienia pól:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Pole</th>
+<th>Znaczenie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>nazwa klastra — identyczna wszędzie</td>
+</tr>
+<tr>
+<td><code>node_name</code></td>
+<td>unikalna nazwa węzła (spójna z certyfikatami)</td>
+</tr>
+<tr>
+<td><code>node_type</code></td>
+<td><code>master</code> (dokładnie jeden) / <code>worker</code></td>
+</tr>
+<tr>
+<td><code>key</code></td>
+<td>wspólny klucz z kroku 1</td>
+</tr>
+<tr>
+<td><code>nodes → node</code></td>
+<td><strong>adres mastera</strong> — na wszystkich węzłach; <strong>nigdy <code>0.0.0.0</code></strong> (workery próbowałyby łączyć się "donikąd")</td>
+</tr>
+<tr>
+<td><code>hidden</code></td>
+<td><code>no</code> = alerty zawierają nazwę węzła, który je obsłużył (przydatne w diagnostyce)</td>
+</tr>
+<tr>
+<td><code>disabled</code></td>
+<td><code>no</code> = klaster aktywny — łatwo przeoczyć!</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>4. Restart (najpierw master, potem workery):</strong></p>
+<pre><code class="language-bash">systemctl restart wazuh-manager
+</code></pre>
+<p>Master synchronizuje do workerów grupy agentów, konfigurację współdzieloną i stan; workery raportują keep-alive i statusy agentów. Rozbudowa klastra o kolejny węzeł sprowadza się do dołożenia workera z tym samym <code>name</code>/<code>key</code>.</p>
+<p class="co co-check"></p>
+<pre><code class="language-bash">/var/ossec/bin/cluster_control -l
+</code></pre>
+<p>Oczekiwane: lista wszystkich węzłów z rolami (<code>master</code>/<code>worker</code>) i adresami IP.</p>
+<h3 id="73-kierowanie-agentow-failover-lub-load-balancer">7.3 Kierowanie agentów: failover lub load balancer</h3>
+<p><strong>Opcja 1 — lista serwerów w konfiguracji agenta (failover):</strong></p>
+<pre><code class="language-xml">&lt;client&gt;
+  &lt;server&gt;
+    &lt;address&gt;10.0.10.22&lt;/address&gt;   &lt;!-- worker (najbliższy agentowi) — najwyższy priorytet --&gt;
+    &lt;port&gt;1514&lt;/port&gt;
+    &lt;protocol&gt;tcp&lt;/protocol&gt;
+  &lt;/server&gt;
+  &lt;server&gt;
+    &lt;address&gt;10.0.10.23&lt;/address&gt;   &lt;!-- kolejny worker --&gt;
+    &lt;port&gt;1514&lt;/port&gt;
+    &lt;protocol&gt;tcp&lt;/protocol&gt;
+  &lt;/server&gt;
+  &lt;server&gt;
+    &lt;address&gt;10.0.10.21&lt;/address&gt;   &lt;!-- master — &quot;gateway of last resort&quot; --&gt;
+    &lt;port&gt;1514&lt;/port&gt;
+    &lt;protocol&gt;tcp&lt;/protocol&gt;
+  &lt;/server&gt;
+&lt;/client&gt;
+</code></pre>
+<p>Kolejność wpisów = priorytet. Po <strong>3 nieudanych keep-alive</strong> agent przechodzi do następnego serwera z listy; zaległe logi buforuje i dosyła po odzyskaniu łączności.</p>
+<p><strong>Opcja 2 — load balancer (NGINX/HAProxy), zalecana przy setkach+ agentów:</strong> agent dostaje <strong>jeden adres</strong> (LB), a rozkładem ruchu steruje konfiguracja balancera:</p>
+<pre><code class="language-nginx">stream {
+    upstream wazuh_master {
+        server 10.0.10.21:1515;              # rejestracja WYŁĄCZNIE do mastera
+    }
+    upstream wazuh_cluster {
+        server 10.0.10.21:1514;              # dane: round-robin po całym klastrze
+        server 10.0.10.22:1514;
+        server 10.0.10.23:1514;
+    }
+    server { listen 1515; proxy_pass wazuh_master; }
+    server { listen 1514; proxy_pass wazuh_cluster; }
+}
+</code></pre>
+<p class="co co-warn">rejestracja agentów (port <strong>1515</strong>) musi zawsze trafiać do <strong>mastera</strong> — tylko on wydaje klucze. Dane (port <strong>1514</strong>) mogą iść na dowolny węzeł. Przy rozbudowie klastra pamiętaj o aktualizacji konfiguracji LB.</p>
+<h3 id="74-dashboard-w-srodowisku-klastrowym">7.4 Dashboard w środowisku klastrowym</h3>
+<p>Wykonane już w rozdz. 6.2.5: <code>opensearch.hosts</code> zawiera <strong>wszystkie</strong> węzły Indexera — Dashboard sam przełączy się na działający węzeł przy awarii. Pojedynczy Dashboard to akceptowalny kompromis (nie bierze udziału w zbieraniu danych; jego awaria nie zatrzymuje platformy) — przy wymaganiu HA postaw drugą instancję z identyczną konfiguracją za reverse proxy.</p>
+<h3 id="75-test-komunikacji-miedzy-wezami">7.5 Test komunikacji między węzłami</h3>
+<p>Wykonaj i <strong>zapisz wyniki w dokumentacji</strong> (to Twój stan odniesienia):</p>
+<pre><code class="language-bash"># 1. Klaster managerów — wszystkie węzły widoczne:
+/var/ossec/bin/cluster_control -l
+
+# 2. Klaster indexerów — wszystkie węzły, status green:
+curl -k -u admin:&lt;HASLO&gt; &quot;https://10.0.10.11:9200/_cat/nodes?v&quot;
+curl -k -u admin:&lt;HASLO&gt; &quot;https://10.0.10.11:9200/_cluster/health?pretty&quot;
+
+# 3. Rozkład shardów i replik:
+curl -k -u admin:&lt;HASLO&gt; &quot;https://10.0.10.11:9200/_cat/shards/wazuh-alerts-*?v&quot;
+
+# 4. Transport Manager -&gt; Indexer (na każdym managerze):
+filebeat test output
+
+# 5. Synchronizacja klastra managerów w logu:
+grep -i cluster /var/ossec/logs/ossec.log | tail
+</code></pre>
+<h3 id="76-test-awarii-pojedynczego-komponentu">7.6 Test awarii pojedynczego komponentu</h3>
+<p>Przeprowadź kontrolowane testy <strong>przed</strong> oddaniem platformy do produkcji (na środowisku z co najmniej jednym agentem testowym):</p>
+<p><strong>Test 1 — awaria workera:</strong></p>
+<pre><code class="language-bash"># na workerze:
+systemctl stop wazuh-manager
+</code></pre>
+<p>Oczekiwane: agenci wskazujący workera przełączają się (po 3 keep-alive, tj. ~kilkadziesiąt sekund) na następny serwer z listy / LB omija węzeł; alerty nadal spływają. Po <code>systemctl start wazuh-manager</code> węzeł wraca do klastra (<code>cluster_control -l</code>).</p>
+<p><strong>Test 2 — awaria węzła Indexera:</strong></p>
+<pre><code class="language-bash"># na jednym z indexerów:
+systemctl stop wazuh-indexer
+</code></pre>
+<p>Oczekiwane <strong>przy skonfigurowanych replikach</strong>: <code>_cluster/health</code> przechodzi w <code>yellow</code> (brakuje replik), ale zapis i odczyt działają — Dashboard dalej pokazuje świeże alerty. Po starcie węzła klaster automatycznie dosynchronizuje shardy i wraca do <code>green</code>.
+Jeśli klaster przeszedł w <strong>RED</strong> — nie ustawiłeś replik (wróć do 7.1).</p>
+<p><strong>Test 3 — awaria mastera:</strong></p>
+<p>Oczekiwane: istniejący agenci <strong>nadal wysyłają dane</strong> do workerów (zbieranie działa), ale <strong>rejestracja nowych agentów i zarządzanie grupami nie działa</strong> do czasu przywrócenia mastera. To znane ograniczenie architektury — awarię mastera traktuj jako incydent priorytetowy (odtworzenie z backupu konfiguracji, rozdz. 4.6).</p>
+<p><strong>Test 4 — awaria Dashboardu:</strong> zbieranie i korelacja działają bez przerwy; brak tylko GUI. Weryfikacja: po restarcie Dashboardu alerty z okresu awarii są widoczne (bo trafiały do Indexera).</p>
+<p class="co co-warn">każdy test wykonuj pojedynczo i czekaj na powrót do stanu <code>green</code> przed kolejnym.</p>
+<h3 id="77-dokumentacja-konfiguracji">7.7 Dokumentacja konfiguracji</h3>
+<p>Bez dokumentacji klaster jest utrzymywalny tylko przez osobę, która go stawiała. Minimum, które musi powstać (i być aktualizowane przy każdej zmianie):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Co zapisać</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Topologia</td>
+<td>diagram + tabela: hostname, IP, rola, lokalizacja, zasoby</td>
+</tr>
+<tr>
+<td>Wersje</td>
+<td>wersja Wazuh każdego komponentu, wersje OS</td>
+</tr>
+<tr>
+<td>Certyfikaty</td>
+<td>gdzie wygenerowane, CN/DN węzłów, <strong>daty ważności</strong>, lokalizacja <code>root-ca.key</code> (offline!)</td>
+</tr>
+<tr>
+<td>Klucz klastra managerów</td>
+<td>odnośnik do sejfu haseł (nie sam klucz!)</td>
+</tr>
+<tr>
+<td>Konta i hasła</td>
+<td>lista kont + odnośniki do sejfu</td>
+</tr>
+<tr>
+<td>Konfiguracje</td>
+<td>kopie/<code>git</code> plików: <code>ossec.conf</code>, <code>opensearch.yml</code>, <code>filebeat.yml</code>, <code>opensearch_dashboards.yml</code>, <code>wazuh.yml</code>, szablony indeksów</td>
+</tr>
+<tr>
+<td>Polityki</td>
+<td>retencja (ISM), repliki/shardy, harmonogram backupów</td>
+</tr>
+<tr>
+<td>Wyniki testów</td>
+<td>wyniki z 7.5 i 7.6 z datami</td>
+</tr>
+<tr>
+<td>Procedury awaryjne</td>
+<td>co robić przy awarii mastera / indexera / zapełnieniu dysku (odnośniki do rozdz. 9)</td>
+</tr>
+</tbody>
+</table></div>
+<p class="co co-tip">trzymaj konfiguracje w repozytorium git (bez sekretów!) lub zarządzaj nimi Ansiblem — odtworzenie węzła sprowadza się wtedy do uruchomienia playbooka.</p>
+<p class="co co-check"><strong>Etap 4:</strong> wszystkie testy 7.5–7.6 zaliczone, klaster <code>green</code>, dokumentacja utworzona i zaakceptowana.</p>
+<hr />
+<h2 id="8-etap-5-konfiguracja-bezpieczenstwa-platformy-wazuh">8. ETAP 5 — Konfiguracja bezpieczeństwa platformy Wazuh</h2>
+<p>SIEM to najbardziej wartościowy cel w sieci — zawiera logi całej organizacji i (przez Active Response) potrafi wykonywać polecenia na końcówkach. Zabezpieczenie samej platformy nie jest opcją.</p>
+<h3 id="81-ograniczenie-dostepu-do-dashboardu">8.1 Ograniczenie dostępu do Dashboardu</h3>
+<ol>
+<li><strong>Sieciowo:</strong> Dashboard (443) i API (55000) dostępne wyłącznie z sieci zarządzania / VPN (rozdz. 5.4, 5.6). Zero ekspozycji do internetu.</li>
+<li><strong>Bind na konkretny interfejs</strong> — <code>server.host</code> w <code>opensearch_dashboards.yml</code> ustawiony na adres w sieci zarządzania (zrobione w 6.2.5).</li>
+<li><strong>Zaufany certyfikat:</strong> wystaw certyfikat Dashboardu z firmowego CA (lub zaimportuj <code>root-ca.pem</code> platformy do zaufanych na stacjach adminów) — eliminujesz "klikanie wyjątków", które maskuje prawdziwe ataki MitM.</li>
+<li><strong>Ogranicz rejestrację agentów</strong> hasłem enrollmentu — bez tego każdy, kto sięga portu 1515, może zarejestrować "agenta" i pobrać współdzieloną konfigurację (cenny rekonesans dla atakującego):</li>
+</ol>
+<pre><code class="language-bash">echo &quot;&lt;TAJNE_HASLO_ENROLLMENTU&gt;&quot; &gt; /var/ossec/etc/authd.pass
+chmod 640 /var/ossec/etc/authd.pass
+chown root:wazuh /var/ossec/etc/authd.pass
+</code></pre>
+<pre><code class="language-xml">&lt;!-- ossec.conf (manager), sekcja &lt;auth&gt; --&gt;
+&lt;auth&gt;
+  &lt;use_password&gt;yes&lt;/use_password&gt;
+&lt;/auth&gt;
+</code></pre>
+<p>Po zmianie: <code>systemctl restart wazuh-manager</code>. Agenci podają hasło przy instalacji (parametr <code>WAZUH_REGISTRATION_PASSWORD</code>).</p>
+<h3 id="82-model-uprawnien-dwie-warstwy-kluczowe-do-zrozumienia">8.2 Model uprawnień — dwie warstwy (kluczowe do zrozumienia)</h3>
+<p>Wazuh ma <strong>dwa niezależne systemy uprawnień</strong>, konfigurowane w dwóch różnych miejscach Dashboardu:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Warstwa</th>
+<th>Gdzie w GUI</th>
+<th>Czym zarządza</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Indexer Security</strong> (OpenSearch)</td>
+<td><em>Indexer management → Security</em></td>
+<td>logowanie do Dashboardu, dostęp do <strong>indeksów/danych</strong> (Internal users, Roles, Roles mapping)</td>
+</tr>
+<tr>
+<td><strong>Wazuh API RBAC</strong></td>
+<td><em>Server management → Security</em></td>
+<td>uprawnienia do <strong>API Managera</strong> — zarządzanie agentami, grupami, konfiguracją (Roles, Policies, Roles mapping)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Nowy użytkownik potrzebuje <strong>obu</strong>: konta i roli w Indexerze (żeby się zalogować i widzieć dane) oraz mapowania roli API (żeby cokolwiek zrobić w części "Wazuh" interfejsu).</p>
+<p><strong>Warunek wstępny:</strong> w <code>/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml</code> musi być:</p>
+<pre><code class="language-yaml">run_as: true
+</code></pre>
+<p>(po zmianie <code>systemctl restart wazuh-dashboard</code>). Bez <code>run_as: true</code> Dashboard wykonuje wszystkie operacje w API jako techniczne konto <code>wazuh-wui</code> — Twoja matryca uprawnień per użytkownik nie zadziała, a audyt straci sens.</p>
+<h3 id="83-konfiguracja-kont-administrator-soc-audytor">8.3 Konfiguracja kont: Administrator / SOC / Audytor</h3>
+<p><strong>Zasady ogólne:</strong></p>
+<ul>
+<li>Wbudowanego konta <strong><code>admin</code> nie usuwaj, nie zmieniaj mu nazwy i nie wyłączaj</strong> — jest używane wewnętrznie przez komponenty. Potraktuj je jako <strong>konto break-glass</strong>: bardzo silne hasło w sejfie, użycie tylko awaryjne.</li>
+<li>Twórz <strong>konta imienne</strong> (np. <code>adm.jkowalski</code>, <code>soc.anowak</code>) — rozliczalność.</li>
+<li>Ról wbudowanych (<code>all_access</code>, <code>readonly</code>, itd.) <strong>nie edytuj</strong> — w razie potrzeby duplikuj.</li>
+</ul>
+<h4 id="831-konto-administratora-imienne">8.3.1 Konto Administratora (imienne)</h4>
+<ol>
+<li><em>Indexer management → Security → Internal users → Create internal user</em> — np. <code>adm.jkowalski</code> + silne hasło.</li>
+<li>Przypisz rolę: otwórz rolę <code>all_access</code> → <em>Duplicate</em> (np. <code>all_access_custom</code>) → <em>Mapped users → Manage mapping</em> → dodaj użytkownika. (Alternatywnie: nadaj użytkownikowi backend role <code>admin</code>, która mapuje się do <code>all_access</code> automatycznie.)</li>
+<li><em>Server management → Security → Roles mapping → Create</em> — np. <code>mapping_admins</code>: Roles = <strong><code>administrator</code></strong>, Internal users = <code>adm.jkowalski</code> → Save.</li>
+<li>Przeloguj się na nowe konto i zweryfikuj pełny dostęp.</li>
+</ol>
+<h4 id="832-konto-analityka-soc-read-only">8.3.2 Konto analityka SOC (read-only)</h4>
+<ol>
+<li><em>Internal users</em> → np. <code>soc.anowak</code>.</li>
+<li><em>Roles → Create role</em> — np. <code>soc_readonly</code>:
+   - <strong>Cluster permissions:</strong> <code>cluster_composite_ops_ro</code>
+   - <strong>Index permissions:</strong> Index = <code>*</code>, uprawnienie <code>read</code>
+   - <strong>Tenant permissions:</strong> <code>global_tenant</code> → <em>Read only</em>
+   - każdy wpis zatwierdzaj <strong>Enterem</strong> (inaczej wartość nie zostanie dodana)</li>
+<li>W roli: <em>Mapped users → Map</em> → <code>soc.anowak</code>.</li>
+<li><em>Server management → Security → Roles mapping</em> → Roles = <strong><code>readonly</code></strong>, Internal users = <code>soc.anowak</code>.</li>
+</ol>
+<p class="co co-warn">kuszące zawężenie indeksów tylko do <code>wazuh-alerts-*</code> <strong>psuje moduł Discover i część widoków</strong> — Dashboard potrzebuje też <code>wazuh-monitoring-*</code>, <code>wazuh-statistics-*</code> i indeksów stanów. Zostaw <code>read</code> na <code>*</code> albo świadomie dodaj wszystkie wymagane wzorce.</p>
+<h4 id="833-konto-audytora-read-only-zawezenie-zakresu-danych">8.3.3 Konto Audytora (read-only + zawężenie zakresu danych)</h4>
+<p>Audytor zwykle ma widzieć dane tylko wybranego obszaru (np. grupy agentów objętej audytem). Wykorzystaj <strong>Document Level Security (DLS)</strong>:</p>
+<ol>
+<li>Oznacz agentów etykietą grupy — w konfiguracji współdzielonej grupy agentów (<em>Endpoint Groups → (grupa) → Files → agent.conf</em>):</li>
+</ol>
+<pre><code class="language-xml">&lt;agent_config&gt;
+  &lt;labels&gt;
+    &lt;label key=&quot;group&quot;&gt;Audyt_2026&lt;/label&gt;
+  &lt;/labels&gt;
+&lt;/agent_config&gt;
+</code></pre>
+<ol start="2">
+<li><em>Roles → Create role</em> — np. <code>audytor_zakres</code>:
+   - Cluster: <code>cluster_composite_ops_ro</code>; Tenant: <code>global_tenant</code> Read only
+   - Index <code>wazuh-alerts-*</code> → <code>read</code> + <strong>Document level security</strong>:</li>
+</ol>
+<pre><code class="language-json">{ &quot;bool&quot;: { &quot;must&quot;: { &quot;match&quot;: { &quot;agent.labels.group&quot;: &quot;Audyt_2026&quot; } } } }
+</code></pre>
+<ol start="3">
+<li>Warstwa API (<em>Server management → Security</em>):
+   - <em>Policies → Create policy</em>: <code>polityka_audyt</code> — Action <code>agent:read</code>, Resource <code>agent:group</code>, Identifier <code>Audyt_2026</code>, Effect <code>allow</code>;
+   - <em>Roles → Create role</em>: <code>rola_audyt</code> + przypisz politykę;
+   - <em>Roles mapping</em>: Roles = <code>rola_audyt</code> + <code>cluster_readonly</code>, Internal users = konto audytora.</li>
+</ol>
+<p>Efekt: audytor loguje się do Dashboardu, widzi wyłącznie zdarzenia i agentów objętych audytem, niczego nie zmieni.</p>
+<h4 id="834-hardening-api-managera">8.3.4 Hardening API Managera</h4>
+<p>Plik <code>/var/ossec/api/configuration/api.yaml</code>:</p>
+<pre><code class="language-yaml">max_login_attempts: 5          # blokada po serii nieudanych logowań
+block_time: 300                # czas blokady [s]
+max_request_per_minute: 300
+</code></pre>
+<p>Skrócenie ważności tokenów JWT (domyślnie 900 s; wartość dobierz do polityki):</p>
+<pre><code class="language-bash">TOKEN=$(curl -s -u wazuh:&lt;HASLO&gt; -k -X POST &quot;https://&lt;IP_MASTERA&gt;:55000/security/user/authenticate?raw=true&quot;)
+curl -k -X PUT &quot;https://&lt;IP_MASTERA&gt;:55000/security/config&quot; \
+  -H &quot;Authorization: Bearer $TOKEN&quot; -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;auth_token_exp_timeout&quot;: 900}'
+</code></pre>
+<h3 id="84-integracja-z-sso-mfa-jezeli-przewidziana">8.4 Integracja z SSO / MFA (jeżeli przewidziana)</h3>
+<p><strong>Fakt projektowy:</strong> Wazuh <strong>nie ma natywnego MFA/TOTP</strong>. Uwierzytelnianie wieloskładnikowe uzyskuje się wyłącznie przez <strong>zewnętrznego dostawcę tożsamości (IdP)</strong> — i to jest zalecany model docelowy dla produkcji:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Metoda</th>
+<th>Kiedy</th>
+<th>Uwagi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SAML</strong> (Entra ID, Okta, Keycloak, Google Workspace)</td>
+<td>organizacja ma IdP z MFA</td>
+<td>MFA egzekwuje IdP; Wazuh dostaje potwierdzoną tożsamość + role</td>
+</tr>
+<tr>
+<td><strong>LDAP / Active Directory</strong></td>
+<td>brak IdP SAML, jest AD</td>
+<td>prostsza konfiguracja; <strong>wymuś TLS</strong> (LDAP domyślnie nie szyfruje!)</td>
+</tr>
+<tr>
+<td>Konta lokalne</td>
+<td>małe środowiska / break-glass</td>
+<td>brak MFA, sztywna polityka haseł</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Szkic konfiguracji SAML (przykład: Microsoft Entra ID):</strong></p>
+<ol>
+<li>W Entra: zarejestruj aplikację (np. "Wazuh SSO"), włącz protokół SAML, zdefiniuj role aplikacji (np. <code>wazuh_admins</code>, <code>wazuh_soc</code>) i przypisz do nich użytkowników/grupy; zanotuj metadane IdP i ustaw <strong>Reply URL</strong> (Assertion Consumer Service) na adres Dashboardu.</li>
+<li>Po stronie Wazuh (konfiguracja security Indexera — plik <code>config.yml</code> pluginu security): dodaj <code>http_authenticator</code> typu <code>saml</code> z parametrami z metadanych IdP (entity ID, URL-e, certyfikat podpisu).</li>
+<li>Zastosuj zmiany skryptem <code>securityadmin.sh</code> (przeładowanie konfiguracji security) i zrestartuj Dashboard.</li>
+<li>Zmapuj role: <em>Roles mapping</em> → jako <strong>backend role</strong> podaj nazwę roli/grupy z IdP (np. <code>wazuh_soc</code> → rola <code>soc_readonly</code>). Każdy członek grupy w IdP automatycznie dostaje właściwe uprawnienia — bez ręcznego zakładania kont.</li>
+<li>Przetestuj na koncie testowym <strong>zanim</strong> wyłączysz logowanie lokalne; zawsze zostaw lokalne konto break-glass (na wypadek awarii IdP).</li>
+</ol>
+<p><strong>LDAP/AD:</strong> w tej samej konfiguracji security aktywuj gotowy szablon LDAP: hosty AD, konto bind (readonly), <code>userbase</code> (<code>OU=...,DC=firma,DC=local</code>), wyszukiwanie po <code>sAMAccountName</code>, <strong><code>enable_ssl: true</code></strong>. Mapowanie grup AD → role przez backend roles, jak wyżej.</p>
+<h3 id="85-audyt-dostepu-do-wazuh">8.5 Audyt dostępu do Wazuh</h3>
+<p>Skonfiguruj rejestrowanie tego, <strong>kto i co robił na samej platformie</strong>:</p>
+<p><strong>1. Audit log warstwy Indexer/Dashboard (logowania, zapytania, zmiany uprawnień)</strong> — w <code>/etc/wazuh-indexer/opensearch.yml</code> na węzłach:</p>
+<pre><code class="language-yaml">plugins.security.audit.type: internal_opensearch
+</code></pre>
+<p>Po restarcie Indexerów zdarzenia audytowe (udane/nieudane logowania, brakujące uprawnienia, zmiany w security) trafiają do indeksu <code>security-auditlog-*</code>. Utwórz dla niego index pattern w Dashboardzie i <strong>politykę retencji ISM</strong> (rośnie szybko). Szczegółowe kategorie zdarzeń dostroisz w <em>Indexer management → Security → Audit logs</em>.</p>
+<p><strong>2. Audyt API Managera:</strong> operacje przez API (zarządzanie agentami, zmiany konfiguracji) są logowane w <code>/var/ossec/logs/api.log</code> — dzięki <code>run_as: true</code> z tożsamością rzeczywistego użytkownika. Log jest czytany przez samego Wazuha (self-monitoring, agent <code>000</code>).</p>
+<p><strong>3. Logowania systemowe (SSH) na maszyny platformy</strong> monitoruje sam Wazuh — upewnij się, że serwery platformy raportują jak zwykłe końcówki (robią to domyślnie jako agent <code>000</code>).</p>
+<p><strong>4. Alerty na zdarzenia administracyjne:</strong> dodaj reguły podnoszące poziom dla nieudanych logowań do Dashboardu/API oraz zmian w konfiguracji security — SOC powinien widzieć próby ataku na własne narzędzie.</p>
+<p class="co co-tip"><strong>środowiska o wysokich wymaganiach dowodowych:</strong> niezależna kopia logów audytowych na storage <strong>niemodyfikowalny</strong> (append-only/WORM/Object Lock) — replikacja wewnątrz klastra nie chroni integralności dowodowej ("garbage in = zreplikowany garbage out").</p>
+<h3 id="86-ustawienie-logrotate-rotacji-logow-platformy">8.6 Ustawienie logrotate / rotacji logów platformy</h3>
+<p>Wazuh <strong>sam rotuje</strong> swoje główne logi: <code>ossec.log</code>, <code>alerts.json</code> i <code>archives.json</code> są codziennie przenoszone do struktury <code>/var/ossec/logs/&lt;typ&gt;/&lt;ROK&gt;/&lt;Mies&gt;/</code> i kompresowane. Twoje zadania:</p>
+<p><strong>1. Nie duplikuj rotacji wbudowanej</strong> — nie konfiguruj logrotate na <code>alerts.json</code>/<code>archives.json</code> (ryzyko konfliktu z Filebeatem i utraty alertów).</p>
+<p><strong>2. Dodaj logrotate dla logów, których Wazuh nie rotuje</strong> — utwórz <code>/etc/logrotate.d/wazuh-extra</code>:</p>
+<pre><code>/var/ossec/logs/active-responses.log
+/var/ossec/logs/api.log
+/var/ossec/logs/cluster.log
+{
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+</code></pre>
+<blockquote>
+<p><code>copytruncate</code> jest tu istotne — procesy Wazuha trzymają otwarte deskryptory plików; klasyczna rotacja przez <code>mv</code> zostawiłaby je piszące "w próżnię".</p>
+</blockquote>
+<p><strong>3. Logi Indexera</strong> (<code>/var/log/wazuh-indexer/</code>) rotuje log4j2 (konfiguracja <code>log4j2.properties</code>) — domyślne ustawienia są zwykle wystarczające; kontroluj łączny rozmiar katalogu.</p>
+<p><strong>4. Retencja skompresowanych archiwów logów</strong> w <code>/var/ossec/logs/</code> — wbudowana rotacja <strong>nie usuwa</strong> starych roczników; dodaj zadanie czyszczące zgodne z polityką retencji, np.:</p>
+<pre><code class="language-bash"># /etc/cron.daily/wazuh-logs-cleanup — usuwa skompresowane logi starsze niż 2 lata (dostosuj!)
+find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mtime +730 -delete
+</code></pre>
+<p><strong>5. Retencja indeksów</strong> to osobny mechanizm — polityka <strong>ISM</strong> (patrz 8.7.1).</p>
+<h3 id="87-dopiecie-retencji-i-higieny-dysku-domkniecie-projektu-z-rozdz-45">8.7 Dopięcie retencji i higieny dysku (domknięcie projektu z rozdz. 4.5)</h3>
+<h4 id="871-polityka-ism-usuwajaca-stare-indeksy">8.7.1 Polityka ISM usuwająca stare indeksy</h4>
+<p><em>Indexer management → Index Management → State management policies → Create policy</em> (JSON):</p>
+<pre><code class="language-json">{
+  &quot;policy&quot;: {
+    &quot;policy_id&quot;: &quot;wazuh-alert-retention-policy&quot;,
+    &quot;description&quot;: &quot;Retencja alertow Wazuh - usuwanie po 90 dniach&quot;,
+    &quot;default_state&quot;: &quot;retention_state&quot;,
+    &quot;states&quot;: [
+      {
+        &quot;name&quot;: &quot;retention_state&quot;,
+        &quot;actions&quot;: [],
+        &quot;transitions&quot;: [
+          { &quot;state_name&quot;: &quot;delete_alerts&quot;,
+            &quot;conditions&quot;: { &quot;min_index_age&quot;: &quot;90d&quot; } }
+        ]
+      },
+      {
+        &quot;name&quot;: &quot;delete_alerts&quot;,
+        &quot;actions&quot;: [
+          { &quot;retry&quot;: { &quot;count&quot;: 3, &quot;backoff&quot;: &quot;exponential&quot;, &quot;delay&quot;: &quot;1m&quot; },
+            &quot;delete&quot;: {} }
+        ],
+        &quot;transitions&quot;: []
+      }
+    ],
+    &quot;ism_template&quot;: [
+      { &quot;index_patterns&quot;: [&quot;wazuh-alerts-*&quot;], &quot;priority&quot;: 1 }
+    ]
+  }
+}
+</code></pre>
+<p class="co co-warn"><code>ism_template</code> obejmie <strong>nowe</strong> indeksy automatycznie; do <strong>istniejących</strong> politykę musisz przypiąć ręcznie: lista indeksów → zaznacz <code>wazuh-alerts-*</code> → <em>Actions → Apply policy</em>. Zweryfikuj kolumnę "Managed by policy".</p>
+<h4 id="872-monitoring-zajetosci-dysku">8.7.2 Monitoring zajętości dysku</h4>
+<p>OpenSearch chroni się przed zapełnieniem dysku <strong>watermarkami</strong> — po przekroczeniu progu przełącza indeksy w tryb <strong>tylko do odczytu</strong>. Objaw jest podstępny: <em>usługi działają, dashboard "zielony", ale nowe alerty nie przybywają</em>. Dlatego:</p>
+<ul>
+<li>utrzymuj zajętość dysków Indexera <strong>poniżej 80%</strong>,</li>
+<li>monitoruj <strong>przyrost liczby dokumentów</strong> w dzisiejszym indeksie (nie sam status usług),</li>
+<li>rozważ dedykowane reguły alarmujące o zajętości CPU/RAM/dysku maszyn platformy (poziom 12 przy &gt; 70–80%).</li>
+</ul>
+<p class="co co-check"><strong>Etap 5:</strong> logowanie kontami imiennymi działa (Admin/SOC/Audytor przetestowane), <code>run_as: true</code>, konto <code>admin</code> w sejfie, enrollment zabezpieczony hasłem, audit log zbiera zdarzenia logowania, ISM aktywne ("Managed by policy"), logrotate skonfigurowany, SSO/MFA wdrożone lub formalnie odroczone decyzją klienta.</p>
+<hr />
+<h2 id="9-troubleshooting-najczestsze-problemy-i-przypadki-brzegowe">9. Troubleshooting — najczęstsze problemy i przypadki brzegowe</h2>
+<blockquote>
+<p>Uniwersalna zasada diagnostyki: Wazuh często zawodzi "po cichu". Zawsze zaczynaj od <code>tail -f /var/ossec/logs/ossec.log</code> (manager), <code>journalctl -u wazuh-indexer</code> / <code>/var/log/wazuh-indexer/wazuh-cluster.log</code> (indexer) i <code>journalctl -u wazuh-dashboard</code> (dashboard). Część błędów ujawnia się dopiero po <code>systemctl restart</code> usługi — samo <code>reload</code> bywa niewystarczające.</p>
+</blockquote>
+<h3 id="91-instalacja">9.1 Instalacja</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Instalator przerywa: <code>The IP is public</code> / <code>invalid IP or DNS</code></td>
+<td>maszyna ma publiczny adres</td>
+<td>produkcyjnie: adresacja prywatna + VPN; w labie można świadomie usunąć warunek ze skryptu</td>
+</tr>
+<tr>
+<td>Indexer nie startuje, błędy bootstrap</td>
+<td>brak <code>vm.max_map_count</code></td>
+<td><code>sysctl -w vm.max_map_count=262144</code> + wpis do <code>/etc/sysctl.conf</code></td>
+</tr>
+<tr>
+<td>(Docker) <code>OCI runtime create failed</code></td>
+<td>kontenery uruchomione <strong>przed</strong> wygenerowaniem certyfikatów</td>
+<td><code>docker compose down</code>, usuń katalog certyfikatów, <code>docker compose -f generate-indexer-certs.yml run --rm generator</code>, dopiero potem <code>up -d</code></td>
+</tr>
+<tr>
+<td>Dashboard: <code>Fail to reset admin password</code> z GUI</td>
+<td>hasła <code>admin</code> nie zmienia się z GUI</td>
+<td>użyj <code>wazuh-passwords-tool.sh</code> (rozdz. 6.3)</td>
+</tr>
+<tr>
+<td><code>apt upgrade</code> niespodziewanie podniósł wersję Wazuh</td>
+<td>aktywne repozytorium pakietów</td>
+<td>po instalacji zablokuj pakiety: <code>apt-mark hold wazuh-manager wazuh-indexer wazuh-dashboard filebeat</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="92-certyfikaty-i-tls">9.2 Certyfikaty i TLS</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Filebeat: błędy TLS/handshake do 9200</td>
+<td>pomieszane/nadpisane certyfikaty węzłów</td>
+<td>nazwy plików muszą odpowiadać <code>name</code> z <code>config.yml</code>; sprawdź osobne katalogi <code>/etc/wazuh-indexer/certs</code>, <code>/etc/filebeat/certs</code>, <code>/etc/wazuh-dashboard/certs</code>; uprawnienia 500/400 i właściciela</td>
+</tr>
+<tr>
+<td>Indexer nie przyjmuje połączeń klastrowych</td>
+<td><code>nodes_dn</code> nie zgadza się z DN certyfikatów</td>
+<td>porównaj <code>openssl x509 -in indexer.pem -noout -subject</code> z wpisami <code>plugins.security.nodes_dn</code></td>
+</tr>
+<tr>
+<td>Przeglądarka/agent: "nie można ustanowić relacji zaufania SSL"</td>
+<td>self-signed cert lub wejście po IP przy certcie na FQDN</td>
+<td>zaimportuj <code>root-ca.pem</code> do zaufanych / wystaw cert z firmowego CA / używaj FQDN zgodnego z certyfikatem</td>
+</tr>
+<tr>
+<td>Wygasłe certyfikaty (platforma stopniowo traci łączność)</td>
+<td>certy <strong>nie odnawiają się same</strong></td>
+<td>odnotowana w dokumentacji data ważności + wygenerowanie nowych <code>wazuh-certs-tool.sh</code> i podmiana per węzeł; monitoruj: <code>openssl x509 -enddate -noout -in &lt;cert&gt;</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="93-dysk-i-indeksy-najczestszy-problem-eksploatacyjny">9.3 Dysk i indeksy (najczęstszy problem eksploatacyjny!)</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dashboard działa, ale nowe alerty nie przybywają</strong></td>
+<td>przekroczony watermark dysku → indeksy read-only; albo ręczna blokada zapisu</td>
+<td>zwolnij miejsce (usuń stare indeksy / rozszerz wolumen), potem zdejmij blokadę: <code>PUT wazuh-alerts-*/_settings {"index.blocks.read_only_allow_delete": null}</code>; sprawdź blokady: <code>GET wazuh-alerts-*/_settings</code></td>
+</tr>
+<tr>
+<td>Dysk zapełnia się szybciej niż planowano</td>
+<td>brak ISM / za długa retencja / gadatliwe źródło (UTM!)</td>
+<td>wdroż politykę ISM (8.7.1); zidentyfikuj najgadatliwsze źródła: <code>GET _cat/indices/wazuh-*?v&amp;s=store.size:desc</code></td>
+</tr>
+<tr>
+<td>Klaster <code>RED</code> po awarii węzła</td>
+<td>indeksy bez replik (domyślnie 0)</td>
+<td>ustaw repliki (7.1); przy pojedynczym węźle odzyskaj węzeł/przywróć z snapshotu</td>
+</tr>
+<tr>
+<td>Klaster <code>yellow</code> na pojedynczym węźle</td>
+<td>replika &gt; 0 przy jednym węźle — nie ma gdzie jej ulokować</td>
+<td>na standalone ustaw <code>number_of_replicas: 0</code></td>
+</tr>
+<tr>
+<td>API platformy nie startuje po zapełnieniu dysku systemowego</td>
+<td>indeksy/logi na partycji systemowej</td>
+<td>osobna partycja na <code>/var/lib/wazuh-indexer</code>; czyszczenie i restart usług</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="94-klaster-managerow">9.4 Klaster managerów</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cluster_control -l</code> nie pokazuje workera</td>
+<td>różny <code>&lt;key&gt;</code> lub <code>&lt;name&gt;</code> na węzłach; port 1516 zablokowany; <code>&lt;disabled&gt;yes&lt;/disabled&gt;</code></td>
+<td>wyrównaj klucz/nazwę klastra, otwórz 1516, ustaw <code>disabled: no</code>, restart</td>
+</tr>
+<tr>
+<td>Workery łączą się "donikąd"</td>
+<td><code>0.0.0.0</code> w <code>&lt;nodes&gt;&lt;node&gt;</code></td>
+<td>tam musi być <strong>konkretny adres mastera</strong></td>
+</tr>
+<tr>
+<td>Nowi agenci nie mogą się zarejestrować (istniejący działają)</td>
+<td>awaria mastera (tylko on rejestruje)</td>
+<td>przywróć mastera; w LB upewnij się, że 1515 → master</td>
+</tr>
+<tr>
+<td>Agent w pętli rozłączeń po przeniesieniu na inny manager</td>
+<td>stare <code>client.keys</code>/pliki rejestracji na agencie</td>
+<td>zatrzymaj agenta, usuń <code>client.keys</code> (Linux: <code>/var/ossec/etc/</code>, Windows: katalog <code>ossec-agent</code>), uruchom — agent zarejestruje się od nowa</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="95-agenci">9.5 Agenci</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent <code>Never connected</code></td>
+<td>firewall 1514/1515; zły adres managera; hostname <code>localhost</code></td>
+<td><code>nc -zv &lt;manager&gt; 1514</code>; popraw <code>&lt;address&gt;</code>; nadaj unikalny hostname i przeinstaluj</td>
+</tr>
+<tr>
+<td>Agent Windows <code>Disconnected</code> po restarcie hosta</td>
+<td>usługa <code>WazuhSvc</code> zatrzymana/ręczna</td>
+<td><code>services.msc</code> → tryb "Automatyczny (opóźnione uruchomienie)" → Start</td>
+</tr>
+<tr>
+<td>Duplikaty agentów o tej samej nazwie</td>
+<td>klonowanie VM z zainstalowanym agentem</td>
+<td>usuń <code>client.keys</code> w obrazie-szablonie; każdy klon rejestruje się od nowa</td>
+</tr>
+<tr>
+<td>Chwilowy zalew zdarzeń po przywróceniu łączności</td>
+<td>agent buforuje logi offline i dosyła je po powrocie</td>
+<td>zachowanie poprawne; przy masowych powrotach (np. po awarii sieci) spodziewaj się piku EPS</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="96-uprawnienia-i-logowanie">9.6 Uprawnienia i logowanie</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Internal server error</code> po zmianie haseł</td>
+<td>stare sesje/ciasteczka</td>
+<td>restart <code>wazuh-manager</code> + <code>wazuh-dashboard</code>, <strong>wyczyść ciasteczka przeglądarki</strong></td>
+</tr>
+<tr>
+<td>Alerty przestały spływać po zmianie haseł</td>
+<td>keystore Filebeat ze starym hasłem</td>
+<td>zaktualizuj <code>filebeat keystore add password</code> na wszystkich managerach, restart filebeat</td>
+</tr>
+<tr>
+<td>Nowy użytkownik widzi dane, ale sekcja Wazuh nie działa</td>
+<td>brak mapowania w warstwie <strong>API</strong> lub <code>run_as: false</code></td>
+<td>uzupełnij <em>Server management → Security → Roles mapping</em>; ustaw <code>run_as: true</code> + restart dashboardu</td>
+</tr>
+<tr>
+<td>Użytkownik read-only ma zepsuty Discover</td>
+<td>uprawnienia tylko do <code>wazuh-alerts-*</code></td>
+<td>dodaj <code>read</code> do pozostałych indeksów wazuh-* (lub <code>*</code>) — patrz 8.3.2</td>
+</tr>
+<tr>
+<td>Zmiany roli "nie zapisują się"</td>
+<td>wpisy niezatwierdzone Enterem w formularzu GUI</td>
+<td>wpisz wartość i zatwierdź Enterem przed Save</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="97-sso-ldap">9.7 SSO / LDAP</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pętla przekierowań przy logowaniu SAML</td>
+<td>błędny Reply URL (ACS) lub brak dostępu przeglądarki do IdP i Dashboardu jednocześnie</td>
+<td>popraw ACS w IdP; pamiętaj, że SAML to "ping-pong" przeglądarki między IdP a Dashboardem</td>
+</tr>
+<tr>
+<td>Użytkownik SSO loguje się, ale bez uprawnień</td>
+<td>brak mapowania backend role → rola</td>
+<td><em>Roles mapping</em>: dodaj nazwę roli/grupy z IdP jako <strong>backend role</strong></td>
+</tr>
+<tr>
+<td>LDAP działa, ale hasła idą jawnym tekstem</td>
+<td>domyślnie <code>enable_ssl: false</code></td>
+<td>wymuś TLS w konfiguracji LDAP</td>
+</tr>
+<tr>
+<td>Awaria IdP = brak dostępu do SIEM</td>
+<td>brak konta awaryjnego</td>
+<td>utrzymuj lokalne konto break-glass (sejf)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="98-wydajnosc">9.8 Wydajność</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Objaw</th>
+<th>Przyczyna</th>
+<th>Rozwiązanie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wolne wyszukiwania, timeouty GUI</td>
+<td>HDD zamiast SSD; heap JVM źle ustawiony; za szerokie okna czasowe</td>
+<td>SSD/NVMe; heap = 50% RAM (≤32 GB, <code>-Xms</code>=<code>-Xmx</code>); analitykom domyślne okno 15 min–24 h</td>
+</tr>
+<tr>
+<td>Indexer "dławi się" przy pikach</td>
+<td>za mało węzłów/shardów względem EPS</td>
+<td>zweryfikuj sizing (rozdz. 4); rozważ dodatkowy węzeł</td>
+</tr>
+<tr>
+<td>Degradacja po włączeniu FIM realtime na wielu ścieżkach</td>
+<td>nadmiarowy monitoring (setki folderów × setki agentów)</td>
+<td>ogranicz zakres FIM do katalogów krytycznych</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="99-aktualizacje-platformy">9.9 Aktualizacje platformy</h3>
+<ul>
+<li>Aktualizuj <strong>sekwencyjnie wersja po wersji</strong> (4.9 → 4.10 → 4.11 → ...), nigdy z przeskokiem — skrypty migracyjne nie kumulują pominiętych zmian; przeskok potrafi uszkodzić bazę.</li>
+<li>Kolejność: Indexery (rolling, węzeł po węźle) → Managery (workery, na końcu master) → Dashboard → agenci (agentów można aktualizować masowo z GUI, o ile serwer jest nowszy).</li>
+<li>Przed aktualizacją: pełny backup konfiguracji + snapshot indeksów + zrzut wersji do dokumentacji.</li>
+<li>Serwer może być nowszy niż agenci (kompatybilność wsteczna); odwrotnie — nie.</li>
+</ul>
+<hr />
+<h2 id="10-zaaczniki">10. Załączniki</h2>
+<h3 id="101-skrocona-checklista-wdrozeniowa">10.1 Skrócona checklista wdrożeniowa</h3>
+<pre><code>ETAP 1 — PROJEKT
+[ ] Oszacowany EPS (x2 zapas) i wybrany wariant architektury
+[ ] Tabela maszyn: role, vCPU/RAM/dysk (SSD!), adresacja
+[ ] Retencja uzgodniona (hot/warm/cold/delete) i zapisana
+[ ] Zaplanowany backup poza platformą (append-only/WORM)
+
+ETAP 2 — INFRASTRUKTURA
+[ ] VM utworzone, unikalne hostname, vm.max_map_count na indexerach
+[ ] DNS: rekordy A/FQDN dla wszystkich komponentów
+[ ] NTP: chrony na wszystkich maszynach (offset ~ms)
+[ ] Firewall wg tabeli portów + SELinux (RHEL)
+[ ] Imienne konta administracyjne, SSH bez haseł
+[ ] Dostęp administracyjny tylko VPN/sieć zarządzania
+
+ETAP 3 — INSTALACJA
+[ ] Certyfikaty: config.yml -&gt; wazuh-certs-tool -&gt; dystrybucja
+[ ] Indexery zainstalowane, opensearch.yml, heap JVM
+[ ] indexer-security-init.sh, _cluster/health = green
+[ ] Managery + Filebeat (keystore, template), filebeat test output = OK
+[ ] Dashboard (opensearch.hosts = wszystkie indexery, wazuh.yml)
+[ ] wazuh-passwords-tool.sh -a, keystore zaktualizowany
+[ ] wazuh-install-files.tar usunięty, hasła w sejfie
+[ ] Agent testowy Active, zdarzenia widoczne
+
+ETAP 4 — KLASTER / HA
+[ ] Repliki indeksów &gt;= 1 (template + istniejące indeksy)
+[ ] &lt;cluster&gt; na master/workerach, wspólny klucz (openssl rand -hex 16)
+[ ] cluster_control -l pokazuje wszystkie węzły
+[ ] Agenci: failover (lista serwerów) lub LB (1515-&gt;master!)
+[ ] Testy awarii: worker / indexer / master / dashboard — wyniki zapisane
+[ ] Dokumentacja konfiguracji kompletna
+
+ETAP 5 — BEZPIECZEŃSTWO
+[ ] Dashboard/API tylko z sieci zarządzania; bind na konkretny interfejs
+[ ] run_as: true
+[ ] Konta: Admin (imienne), SOC (read-only), Audytor (DLS); admin = break-glass
+[ ] Hasło enrollmentu agentów (authd.pass)
+[ ] SSO/MFA przez IdP (SAML/LDAP+TLS) lub decyzja o odroczeniu
+[ ] Audit log security (security-auditlog-*) + retencja
+[ ] Logrotate + cron czyszczący archiwa logów
+[ ] Polityka ISM aktywna (&quot;Managed by policy&quot;)
+</code></pre>
+<h3 id="102-przydatne-komendy-diagnostyczne-sciaga">10.2 Przydatne komendy diagnostyczne (ściąga)</h3>
+<pre><code class="language-bash"># Stan usług
+systemctl status wazuh-manager wazuh-indexer wazuh-dashboard filebeat
+
+# Klaster managerów
+/var/ossec/bin/cluster_control -l
+
+# Klaster indexerów
+curl -k -u admin:&lt;HASLO&gt; https://&lt;IP&gt;:9200/_cluster/health?pretty
+curl -k -u admin:&lt;HASLO&gt; https://&lt;IP&gt;:9200/_cat/nodes?v
+curl -k -u admin:&lt;HASLO&gt; &quot;https://&lt;IP&gt;:9200/_cat/shards/wazuh-alerts-*?v&quot;
+curl -k -u admin:&lt;HASLO&gt; &quot;https://&lt;IP&gt;:9200/_cat/indices/wazuh-*?v&amp;s=store.size:desc&quot;
+curl -k -u admin:&lt;HASLO&gt; &quot;https://&lt;IP&gt;:9200/_cat/allocation?v&amp;s=node&quot;
+
+# Polityki ISM
+curl -k -u admin:&lt;HASLO&gt; &quot;https://&lt;IP&gt;:9200/_opendistro/_ism/explain/wazuh-alerts-*&quot;
+
+# Transport manager -&gt; indexer
+filebeat test output
+
+# Główne logi
+tail -f /var/ossec/logs/ossec.log
+journalctl -u wazuh-indexer -n 50
+journalctl -u wazuh-dashboard -n 50
+
+# Walidacja konfiguracji reguł managera
+/var/ossec/bin/wazuh-analysisd -t
+
+# Ważność certyfikatu
+openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
+</code></pre>
+<h3 id="103-sownik-pojec">10.3 Słownik pojęć</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Pojęcie</th>
+<th>Definicja</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>EPS</strong></td>
+<td>Events Per Second — liczba zdarzeń na sekundę wpadających do SIEM; podstawowa miara sizingu</td>
+</tr>
+<tr>
+<td><strong>Indeks</strong></td>
+<td>logiczny kontener danych w Indexerze; Wazuh tworzy indeksy dzienne (np. <code>wazuh-alerts-4.x-2026.07.12</code>)</td>
+</tr>
+<tr>
+<td><strong>Shard (primary/replica)</strong></td>
+<td>fizyczny fragment indeksu; repliki = kopie shardów na innych węzłach (HA + skalowanie odczytu)</td>
+</tr>
+<tr>
+<td><strong>ISM</strong></td>
+<td>Index State Management — polityki cyklu życia indeksów (przejścia hot→warm→cold→delete)</td>
+</tr>
+<tr>
+<td><strong>Watermark</strong></td>
+<td>próg zajętości dysku, po którym OpenSearch blokuje zapis do indeksów</td>
+</tr>
+<tr>
+<td><strong>Master/Worker</strong></td>
+<td>role węzłów klastra Managera; master dodatkowo rejestruje agentów i synchronizuje konfigurację</td>
+</tr>
+<tr>
+<td><strong>Enrollment</strong></td>
+<td>rejestracja agenta na porcie 1515 (TLS), wydanie klucza komunikacyjnego</td>
+</tr>
+<tr>
+<td><strong>RBAC</strong></td>
+<td>Role-Based Access Control — model uprawnień oparty na rolach (dwie warstwy: Indexer + Wazuh API)</td>
+</tr>
+<tr>
+<td><strong>DLS</strong></td>
+<td>Document Level Security — filtrowanie widoczności pojedynczych dokumentów w indeksie per rola</td>
+</tr>
+<tr>
+<td><strong>Break-glass</strong></td>
+<td>konto awaryjne o pełnych uprawnieniach, przechowywane w sejfie, używane tylko w sytuacjach krytycznych</td>
+</tr>
+<tr>
+<td><strong>run_as</strong></td>
+<td>tryb, w którym Dashboard wykonuje operacje API z tożsamością zalogowanego użytkownika</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<p><em>Dokument przygotowany jako materiał wdrożeniowy dla administratorów IT. Przed użyciem w środowisku produkcyjnym zweryfikuj zgodność komend z aktualnie wdrażaną wersją Wazuh (dokumentacja: documentation.wazuh.com).</em></p>
+</article>
+</main></div>
+<script>
+(function(){
+  "use strict";
+  /* ---------- motyw ---------- */
+  var tbtn = document.getElementById('themeBtn');
+  function themeLabel(){
+    var t = document.documentElement.getAttribute('data-theme');
+    tbtn.textContent = t === 'dark' ? 'Motyw: ciemny' : t === 'light' ? 'Motyw: jasny' : 'Motyw: systemowy';
+  }
+  tbtn.addEventListener('click', function(){
+    var cur = document.documentElement.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : cur === 'light' ? null : 'dark';
+    if(next){ document.documentElement.setAttribute('data-theme', next); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+    themeLabel();
+  });
+  themeLabel();
+
+  /* ---------- menu mobilne ---------- */
+  var side = document.getElementById('side');
+  var mbtn = document.getElementById('menuBtn');
+  mbtn.addEventListener('click', function(){ side.classList.toggle('open'); });
+  side.addEventListener('click', function(e){
+    if(e.target.closest('a')) side.classList.remove('open');
+  });
+
+  /* ---------- spis treści ---------- */
+  var nav = document.getElementById('toc');
+  var heads = document.querySelectorAll('#content h2[id], #content h3[id]');
+  heads.forEach(function(h){
+    var a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.className = h.tagName === 'H2' ? 'toc-h2' : 'toc-h3';
+    a.textContent = h.textContent.replace(/^ETAP (\d) — /, '$1 · ');
+    nav.appendChild(a);
+  });
+  var links = nav.querySelectorAll('a');
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var current = null;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        if(current) current.classList.remove('on');
+        current = map[en.target.id];
+        if(current){ current.classList.add('on'); }
+      }
+    });
+  }, {rootMargin: '-10% 0px -80% 0px'});
+  heads.forEach(function(h){ io.observe(h); });
+
+  /* ---------- kalkulator ---------- */
+  var $ = function(id){ return document.getElementById(id); };
+  var inputs = ['winSrv','winWs','linux','utm','extraEps','retention',
+                'epsWinSrv','epsWinWs','epsLinux','epsUtm'];
+  var fmt = new Intl.NumberFormat('pl-PL', {maximumFractionDigits:0});
+  var fmt1 = new Intl.NumberFormat('pl-PL', {maximumFractionDigits:1});
+  function num(id){ var v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : 0; }
+
+  function calc(){
+    var winSrv = num('winSrv'), winWs = num('winWs'), linux = num('linux'), utm = num('utm');
+    var agents = winSrv + winWs + linux;
+    var raw = winSrv*num('epsWinSrv') + winWs*num('epsWinWs') + linux*num('epsLinux')
+            + utm*num('epsUtm') + num('extraEps');
+    var head = $('headroom').checked;
+    var eps = Math.ceil(raw * (head ? 2 : 1));
+    var ret = Math.max(7, num('retention'));
+
+    /* wolumen: 1 EPS = 0,5–1 KB/s -> GB/dzień */
+    var dayLo = eps * 0.0432, dayHi = eps * 0.0864;
+    /* dysk: górna granica x retencja x 1,3 narzut x 1,25 zapas */
+    var diskGB = dayHi * ret * 1.3 * 1.25;
+
+    var arch, why, machines = [], notes = [];
+    var replicas = 0;
+
+    if(raw === 0){
+      $('recName').textContent = '—';
+      $('recWhy').textContent = 'Wprowadź liczbę źródeł logów po lewej stronie.';
+      $('tEps').textContent = $('tAgents').textContent = $('tDaily').textContent = $('tDisk').textContent = '—';
+      $('tEpsSub').textContent = $('tDiskSub').textContent = '';
+      $('machRows').innerHTML = ''; $('calcNotes').innerHTML = '';
+      return;
+    }
+
+    function mgrSize(count){
+      var v = Math.min(16, Math.max(4, Math.ceil(eps/100/count)));
+      return {v:v, r:Math.min(32, Math.max(8, v*2))};
+    }
+    function idxSize(count){
+      var v = Math.min(16, Math.max(8, Math.ceil(eps*1.5/100/count)));
+      var r = Math.min(64, Math.max(16, v*4));
+      return {v:v, r:r};
+    }
+
+    if(eps <= 200 && agents <= 200){
+      arch = 'STANDALONE';
+      why = 'EPS projektowy ' + fmt.format(eps) + ' i ' + fmt.format(agents) +
+            ' agentów mieszczą się w limicie pojedynczego serwera (≤ 200 EPS, ≤ ~200 agentów).';
+      var v = eps <= 100 ? 4 : 8, r = eps <= 100 ? 8 : 16;
+      machines.push(['wazuh-aio','Manager + Indexer + Dashboard', v, r, diskGB]);
+      notes.push('Planujesz wzrost powyżej ~200 agentów? Zaprojektuj od razu klaster — konwersja standalone → klaster wymaga regeneracji certyfikatów i przestoju (rozdz. 4.1).');
+      notes.push('Na pojedynczym węźle ustaw number_of_replicas: 0 (replika bez drugiego węzła daje status yellow).');
+    } else {
+      replicas = 1;
+      diskGB *= 2; /* 1 replika */
+      var mgrN, idxN, dashN = 1;
+      if(eps <= 1000){
+        arch = 'KLASTER ŚREDNI';
+        mgrN = 2; idxN = 3;
+        why = 'EPS projektowy ' + fmt.format(eps) + ' (przedział 200–1000) wymaga klastra: 2 managery, 3 indexery (kworum), 1 dashboard.';
+      } else {
+        arch = 'KLASTER DUŻY';
+        mgrN = eps > 3000 ? 3 : 2;
+        idxN = Math.min(5, Math.max(3, Math.ceil(eps/1000) + 1));
+        dashN = eps > 5000 ? 2 : 1;
+        why = 'EPS projektowy ' + fmt.format(eps) + ' (> 1000) to środowisko duże: ' + mgrN +
+              ' managery, ' + idxN + ' indexerów, ' + dashN + ' dashboard' + (dashN > 1 ? 'y' : '') + '.';
+      }
+      var ms = mgrSize(mgrN), is = idxSize(idxN);
+      var idxDisk = diskGB / idxN;
+      machines.push(['wazuh-master-1','Manager (master) + Filebeat', ms.v, ms.r, 100]);
+      for(var i=1;i<mgrN;i++) machines.push(['wazuh-worker-'+i,'Manager (worker) + Filebeat', ms.v, ms.r, 100]);
+      for(var j=1;j<=idxN;j++) machines.push(['wazuh-indexer-'+j,'Wazuh Indexer', is.v, is.r, idxDisk]);
+      for(var k=1;k<=dashN;k++) machines.push(['wazuh-dashboard'+(dashN>1?'-'+k:''),'Dashboard', 2, 4, 50]);
+      notes.push('Minimum 3 indexery = kworum klastra (ochrona przed split-brain, rozdz. 4.1).');
+      notes.push('Ustaw 1 replikę indeksów — domyślne 0 replik oznacza brak HA (klaster RED po awarii węzła, rozdz. 7.1). Dysk poniżej uwzględnia już replikę (×2).');
+      notes.push('Rejestracja agentów (port 1515) zawsze przez mastera — skonfiguruj to w load balancerze (rozdz. 7.3).');
+      if(is.r >= 64) notes.push('Heap JVM indexera ustaw na maks. 31–32 GB niezależnie od RAM maszyny (rozdz. 4.4).');
+    }
+    notes.push('Dyski indexerów wyłącznie SSD/NVMe (ew. SAS 10–15k). HDD = gwarantowany problem wydajnościowy.');
+    if(ret > 180) notes.push('Retencja ' + fmt.format(ret) + ' dni na dyskach online jest kosztowna — rozważ tiering hot/warm/cold i politykę ISM (rozdz. 4.5, 8.7).');
+
+    $('recName').textContent = arch;
+    $('recWhy').textContent = why;
+    $('tEps').textContent = fmt.format(eps);
+    $('tEpsSub').textContent = head ? (fmt.format(Math.ceil(raw)) + ' surowy × 2 zapasu') : 'bez zapasu (niezalecane)';
+    $('tAgents').textContent = fmt.format(agents);
+    $('tDaily').textContent = fmt.format(Math.round(dayLo)) + '–' + fmt.format(Math.round(dayHi));
+    var diskTB = diskGB / 1000;
+    $('tDisk').textContent = diskTB >= 1 ? fmt1.format(diskTB) + ' TB' : fmt.format(Math.round(diskGB)) + ' GB';
+    $('tDiskSub').textContent = 'retencja ' + fmt.format(ret) + ' dni' + (replicas ? ' · 1 replika' : '') + ' · narzut ×1,3 · zapas ×1,25';
+
+    $('machRows').innerHTML = machines.map(function(m){
+      var d = m[4] >= 1000 ? fmt1.format(m[4]/1000) + ' TB' : fmt.format(Math.round(m[4])) + ' GB';
+      return '<tr><td><code>' + m[0] + '</code></td><td>' + m[1] + '</td><td>' + m[2] +
+             '</td><td>' + m[3] + ' GB</td><td>' + d + '</td></tr>';
+    }).join('');
+    $('calcNotes').innerHTML = notes.map(function(n){ return '<li>' + n + '</li>'; }).join('');
+  }
+  inputs.forEach(function(id){ $(id).addEventListener('input', calc); });
+  $('headroom').addEventListener('change', calc);
+  calc();
+})();
+</script>
+
+</body>
+</html>
