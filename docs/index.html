@@ -282,6 +282,15 @@ tbody tr:hover{background:var(--surface2)}
           <input type="checkbox" id="headroom" checked>
           <label for="headroom">Zapas ×2 <small>(wzrost, NIS2 — zalecane)</small></label></div>
       </fieldset>
+      <fieldset>
+        <legend>Liczba maszyn (klaster)</legend>
+        <div class="fld fld-check">
+          <input type="radio" name="topo" id="topoRef" value="ref" checked>
+          <label for="topoRef">Referencyjna <small>(pełna separacja — zalecana)</small></label></div>
+        <div class="fld fld-check">
+          <input type="radio" name="topo" id="topoCompact" value="compact">
+          <label for="topoCompact">Skonsolidowana <small>(mniej maszyn, role łączone)</small></label></div>
+      </fieldset>
       <details class="calc-adv">
         <summary>Zaawansowane: EPS na urządzenie</summary>
         <div class="fld"><label for="epsWinSrv">Serwer Windows <small>(typowo 5–20)</small></label>
@@ -697,8 +706,44 @@ tbody tr:hover{background:var(--surface2)}
 </tr>
 </tbody>
 </table></div>
+<p><strong>Wariant B-kompakt — klaster skonsolidowany (środowisko średnie), 3 maszyny:</strong> gdy liczba serwerów jest dla klienta barierą, role można łączyć — wysoka dostępność obu warstw i kworum indexerów pozostają zachowane:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Maszyna</th>
+<th>Komponenty</th>
+<th>Uwaga</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wazuh-node-1</code></td>
+<td>Manager (master) + Filebeat + Indexer + Dashboard</td>
+<td>zasoby zsumowane</td>
+</tr>
+<tr>
+<td><code>wazuh-node-2</code></td>
+<td>Manager (worker) + Filebeat + Indexer</td>
+<td>zasoby zsumowane</td>
+</tr>
+<tr>
+<td><code>wazuh-node-3</code></td>
+<td>Indexer</td>
+<td>dopełnia kworum (3 węzły)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Zasady konsolidacji:</p>
+<ul>
+<li><strong>węzły Indexera zawsze na osobnych fizycznych hostach</strong> — dwa procesy Indexera na jednej maszynie to fikcja HA (awaria hosta zabiera i shard, i jego replikę),</li>
+<li><strong>master i worker Managera rozdzielone</strong> — z tego samego powodu,</li>
+<li>zasoby współdzielonych maszyn <strong>sumujemy</strong> (Manager + Indexer + ew. Dashboard),</li>
+<li>certyfikaty per komponent w osobnych katalogach (<code>/etc/wazuh-indexer/certs</code>, <code>/etc/filebeat/certs</code>, <code>/etc/wazuh-dashboard/certs</code>) — łatwo je pomylić na wspólnym hoście,</li>
+<li>Dashboard jest lekki — może stać na dowolnym z węzłów.</li>
+</ul>
+<p>Kompromis: mniej maszyn = mniejszy zapas wydajności (Indexer konkuruje z Managerem o RAM/dyski) i trudniejszy troubleshooting. Przy skali "dużej" (&gt;1000 EPS) wracaj do pełnej separacji komponentów.</p>
 <p><strong>Wariant C — multi-site (dwie lokalizacje), 7+ maszyn:</strong> po jednym (lub dwa) managerze na lokalizację, indexery obu lokalizacji spięte w <strong>jeden wspólny klaster</strong>, jeden centralny dashboard dla SOC. Rozdzielność danych między lokalizacjami realizuje się osobnymi wzorcami indeksów (np. <code>site-a-alerts-*</code>, <code>site-b-alerts-*</code>).</p>
-<p class="co co-tip">Manager i Indexer można technicznie postawić na jednej maszynie, ale przy skali "średniej+" rozdzielaj je — Indexer nie będzie konkurował z Managerem o RAM i dyski, a troubleshooting certyfikatów jest prostszy (osobne katalogi, osobne maszyny).</p>
+<p class="co co-tip">przy skali "średniej+" preferuj pełną separację Managera i Indexera — Indexer nie konkuruje wtedy z Managerem o RAM i dyski, a troubleshooting certyfikatów jest prostszy (osobne katalogi, osobne maszyny). Wariant kompaktowy traktuj jako świadomy kompromis kosztowy, nie jako domyślny wybór.</p>
 <h3 id="44-okreslenie-zasobow-cpu-ram-dysk">4.4 Określenie zasobów CPU / RAM / dysk</h3>
 <p>Co konsumuje każdy zasób:</p>
 <ul>
@@ -2197,10 +2242,28 @@ openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
       }
       var ms = mgrSize(mgrN), is = idxSize(idxN);
       var idxDisk = diskGB / idxN;
-      machines.push(['wazuh-master-1','Manager (master) + Filebeat', ms.v, ms.r, 100]);
-      for(var i=1;i<mgrN;i++) machines.push(['wazuh-worker-'+i,'Manager (worker) + Filebeat', ms.v, ms.r, 100]);
-      for(var j=1;j<=idxN;j++) machines.push(['wazuh-indexer-'+j,'Wazuh Indexer', is.v, is.r, idxDisk]);
-      for(var k=1;k<=dashN;k++) machines.push(['wazuh-dashboard'+(dashN>1?'-'+k:''),'Dashboard', 2, 4, 50]);
+      var compact = document.getElementById('topoCompact').checked;
+      if(compact){
+        arch += ' · SKONSOLIDOWANY';
+        why += ' Wariant skonsolidowany: role łączone na ' + idxN + ' maszynach — węzły Indexera pozostają na osobnych hostach (kworum i HA zachowane), zasoby zsumowane.';
+        for(var c=1;c<=idxN;c++){
+          var roles = ['Indexer'], v = is.v, r = is.r, d = idxDisk;
+          if(c === 1){ roles.unshift('Manager (master) + Filebeat'); v += ms.v; r += ms.r; d += 100; }
+          else if(c <= mgrN){ roles.unshift('Manager (worker) + Filebeat'); v += ms.v; r += ms.r; d += 100; }
+          if(c === 1 && dashN >= 1){ roles.push('Dashboard'); v += 2; r += 4; d += 50; }
+          machines.push(['wazuh-node-'+c, roles.join(' + '), v, r, d]);
+        }
+        if(dashN > 1) machines.push(['wazuh-dashboard-2','Dashboard (druga instancja)', 2, 4, 50]);
+        notes.push('Konsolidacja: NIGDY dwa węzły Indexera na jednym hoście (fikcja HA) i nigdy master z workerem na jednym hoście. Zasoby maszyn poniżej są już zsumowane.');
+        notes.push('Na wspólnym hoście pilnuj osobnych katalogów certyfikatów (/etc/wazuh-indexer/certs, /etc/filebeat/certs, /etc/wazuh-dashboard/certs) — rozdz. 4.3.');
+        if(eps > 1000) notes.push('Przy > 1000 EPS konsolidacja to ryzykowny kompromis — Indexer będzie konkurował z Managerem o RAM/dyski. Zalecana architektura referencyjna (rozdz. 4.3).');
+      } else {
+        machines.push(['wazuh-master-1','Manager (master) + Filebeat', ms.v, ms.r, 100]);
+        for(var i=1;i<mgrN;i++) machines.push(['wazuh-worker-'+i,'Manager (worker) + Filebeat', ms.v, ms.r, 100]);
+        for(var j=1;j<=idxN;j++) machines.push(['wazuh-indexer-'+j,'Wazuh Indexer', is.v, is.r, idxDisk]);
+        for(var k=1;k<=dashN;k++) machines.push(['wazuh-dashboard'+(dashN>1?'-'+k:''),'Dashboard', 2, 4, 50]);
+        notes.push('Klienta odstrasza liczba serwerów? Przełącz na wariant „Skonsolidowany" — klaster średni mieści się na 3 maszynach z zachowaniem HA i kworum (rozdz. 4.3).');
+      }
       notes.push('Minimum 3 indexery = kworum klastra (ochrona przed split-brain, rozdz. 4.1).');
       notes.push('Ustaw 1 replikę indeksów — domyślne 0 replik oznacza brak HA (klaster RED po awarii węzła, rozdz. 7.1). Dysk poniżej uwzględnia już replikę (×2).');
       notes.push('Rejestracja agentów (port 1515) zawsze przez mastera — skonfiguruj to w load balancerze (rozdz. 7.3).');
@@ -2228,6 +2291,8 @@ openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
   }
   inputs.forEach(function(id){ $(id).addEventListener('input', calc); });
   $('headroom').addEventListener('change', calc);
+  $('topoRef').addEventListener('change', calc);
+  $('topoCompact').addEventListener('change', calc);
   calc();
 })();
 </script>

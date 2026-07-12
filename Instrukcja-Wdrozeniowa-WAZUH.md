@@ -211,9 +211,27 @@ Przemnóż liczbę urządzeń przez typowe wartości EPS, zsumuj i **pomnóż wy
 | `wazuh-indexer-1..3` | Wazuh Indexer (3 maszyny) |
 | `wazuh-dashboard` | Dashboard (na tej maszynie wygodnie też generować certyfikaty) |
 
+**Wariant B-kompakt — klaster skonsolidowany (środowisko średnie), 3 maszyny:** gdy liczba serwerów jest dla klienta barierą, role można łączyć — wysoka dostępność obu warstw i kworum indexerów pozostają zachowane:
+
+| Maszyna | Komponenty | Uwaga |
+|---|---|---|
+| `wazuh-node-1` | Manager (master) + Filebeat + Indexer + Dashboard | zasoby zsumowane |
+| `wazuh-node-2` | Manager (worker) + Filebeat + Indexer | zasoby zsumowane |
+| `wazuh-node-3` | Indexer | dopełnia kworum (3 węzły) |
+
+Zasady konsolidacji:
+
+- **węzły Indexera zawsze na osobnych fizycznych hostach** — dwa procesy Indexera na jednej maszynie to fikcja HA (awaria hosta zabiera i shard, i jego replikę),
+- **master i worker Managera rozdzielone** — z tego samego powodu,
+- zasoby współdzielonych maszyn **sumujemy** (Manager + Indexer + ew. Dashboard),
+- certyfikaty per komponent w osobnych katalogach (`/etc/wazuh-indexer/certs`, `/etc/filebeat/certs`, `/etc/wazuh-dashboard/certs`) — łatwo je pomylić na wspólnym hoście,
+- Dashboard jest lekki — może stać na dowolnym z węzłów.
+
+Kompromis: mniej maszyn = mniejszy zapas wydajności (Indexer konkuruje z Managerem o RAM/dyski) i trudniejszy troubleshooting. Przy skali "dużej" (>1000 EPS) wracaj do pełnej separacji komponentów.
+
 **Wariant C — multi-site (dwie lokalizacje), 7+ maszyn:** po jednym (lub dwa) managerze na lokalizację, indexery obu lokalizacji spięte w **jeden wspólny klaster**, jeden centralny dashboard dla SOC. Rozdzielność danych między lokalizacjami realizuje się osobnymi wzorcami indeksów (np. `site-a-alerts-*`, `site-b-alerts-*`).
 
-💡 **Dobra praktyka:** Manager i Indexer można technicznie postawić na jednej maszynie, ale przy skali "średniej+" rozdzielaj je — Indexer nie będzie konkurował z Managerem o RAM i dyski, a troubleshooting certyfikatów jest prostszy (osobne katalogi, osobne maszyny).
+💡 **Dobra praktyka:** przy skali "średniej+" preferuj pełną separację Managera i Indexera — Indexer nie konkuruje wtedy z Managerem o RAM i dyski, a troubleshooting certyfikatów jest prostszy (osobne katalogi, osobne maszyny). Wariant kompaktowy traktuj jako świadomy kompromis kosztowy, nie jako domyślny wybór.
 
 ### 4.4 Określenie zasobów CPU / RAM / dysk
 

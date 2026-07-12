@@ -182,6 +182,15 @@ CALC = """
           <input type="checkbox" id="headroom" checked>
           <label for="headroom">Zapas ×2 <small>(wzrost, NIS2 — zalecane)</small></label></div>
       </fieldset>
+      <fieldset>
+        <legend>Liczba maszyn (klaster)</legend>
+        <div class="fld fld-check">
+          <input type="radio" name="topo" id="topoRef" value="ref" checked>
+          <label for="topoRef">Referencyjna <small>(pełna separacja — zalecana)</small></label></div>
+        <div class="fld fld-check">
+          <input type="radio" name="topo" id="topoCompact" value="compact">
+          <label for="topoCompact">Skonsolidowana <small>(mniej maszyn, role łączone)</small></label></div>
+      </fieldset>
       <details class="calc-adv">
         <summary>Zaawansowane: EPS na urządzenie</summary>
         <div class="fld"><label for="epsWinSrv">Serwer Windows <small>(typowo 5–20)</small></label>
@@ -585,10 +594,28 @@ JS = r"""
       }
       var ms = mgrSize(mgrN), is = idxSize(idxN);
       var idxDisk = diskGB / idxN;
-      machines.push(['wazuh-master-1','Manager (master) + Filebeat', ms.v, ms.r, 100]);
-      for(var i=1;i<mgrN;i++) machines.push(['wazuh-worker-'+i,'Manager (worker) + Filebeat', ms.v, ms.r, 100]);
-      for(var j=1;j<=idxN;j++) machines.push(['wazuh-indexer-'+j,'Wazuh Indexer', is.v, is.r, idxDisk]);
-      for(var k=1;k<=dashN;k++) machines.push(['wazuh-dashboard'+(dashN>1?'-'+k:''),'Dashboard', 2, 4, 50]);
+      var compact = document.getElementById('topoCompact').checked;
+      if(compact){
+        arch += ' · SKONSOLIDOWANY';
+        why += ' Wariant skonsolidowany: role łączone na ' + idxN + ' maszynach — węzły Indexera pozostają na osobnych hostach (kworum i HA zachowane), zasoby zsumowane.';
+        for(var c=1;c<=idxN;c++){
+          var roles = ['Indexer'], v = is.v, r = is.r, d = idxDisk;
+          if(c === 1){ roles.unshift('Manager (master) + Filebeat'); v += ms.v; r += ms.r; d += 100; }
+          else if(c <= mgrN){ roles.unshift('Manager (worker) + Filebeat'); v += ms.v; r += ms.r; d += 100; }
+          if(c === 1 && dashN >= 1){ roles.push('Dashboard'); v += 2; r += 4; d += 50; }
+          machines.push(['wazuh-node-'+c, roles.join(' + '), v, r, d]);
+        }
+        if(dashN > 1) machines.push(['wazuh-dashboard-2','Dashboard (druga instancja)', 2, 4, 50]);
+        notes.push('Konsolidacja: NIGDY dwa węzły Indexera na jednym hoście (fikcja HA) i nigdy master z workerem na jednym hoście. Zasoby maszyn poniżej są już zsumowane.');
+        notes.push('Na wspólnym hoście pilnuj osobnych katalogów certyfikatów (/etc/wazuh-indexer/certs, /etc/filebeat/certs, /etc/wazuh-dashboard/certs) — rozdz. 4.3.');
+        if(eps > 1000) notes.push('Przy > 1000 EPS konsolidacja to ryzykowny kompromis — Indexer będzie konkurował z Managerem o RAM/dyski. Zalecana architektura referencyjna (rozdz. 4.3).');
+      } else {
+        machines.push(['wazuh-master-1','Manager (master) + Filebeat', ms.v, ms.r, 100]);
+        for(var i=1;i<mgrN;i++) machines.push(['wazuh-worker-'+i,'Manager (worker) + Filebeat', ms.v, ms.r, 100]);
+        for(var j=1;j<=idxN;j++) machines.push(['wazuh-indexer-'+j,'Wazuh Indexer', is.v, is.r, idxDisk]);
+        for(var k=1;k<=dashN;k++) machines.push(['wazuh-dashboard'+(dashN>1?'-'+k:''),'Dashboard', 2, 4, 50]);
+        notes.push('Klienta odstrasza liczba serwerów? Przełącz na wariant „Skonsolidowany" — klaster średni mieści się na 3 maszynach z zachowaniem HA i kworum (rozdz. 4.3).');
+      }
       notes.push('Minimum 3 indexery = kworum klastra (ochrona przed split-brain, rozdz. 4.1).');
       notes.push('Ustaw 1 replikę indeksów — domyślne 0 replik oznacza brak HA (klaster RED po awarii węzła, rozdz. 7.1). Dysk poniżej uwzględnia już replikę (×2).');
       notes.push('Rejestracja agentów (port 1515) zawsze przez mastera — skonfiguruj to w load balancerze (rozdz. 7.3).');
@@ -616,6 +643,8 @@ JS = r"""
   }
   inputs.forEach(function(id){ $(id).addEventListener('input', calc); });
   $('headroom').addEventListener('change', calc);
+  $('topoRef').addEventListener('change', calc);
+  $('topoCompact').addEventListener('change', calc);
   calc();
 })();
 """
