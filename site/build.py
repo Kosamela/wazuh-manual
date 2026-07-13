@@ -227,8 +227,8 @@ CALC = """
         <summary>Jak to jest liczone?</summary>
         <ul>
           <li>EPS = Σ (liczba urządzeń × EPS na urządzenie) + inne źródła; opcjonalnie ×2 zapasu.</li>
-          <li>Wolumen: 1 EPS ≈ 0,5–1 KB/s → 100 EPS ≈ 4–8 GB/dzień (górna granica użyta do sizingu).</li>
-          <li>Dysk = wolumen dzienny × retencja × 1,3 (narzut indeksów) × 1,25 (zapas); w klastrze ×2 (1 replika).</li>
+          <li>Wolumen: 1 EPS ≈ 0,5–1 KB/s → 100 EPS ≈ 4–8 GB/dzień (do sizingu dysku użyta dolna granica — konserwatywnie wobec realnych wolumenów).</li>
+          <li>Dysk = wolumen dzienny × retencja × 1,3 (narzut indeksów); w klastrze ×2 (1 replika).</li>
           <li>CPU: ~100 EPS ≈ 1 vCPU (manager), ~1–2 vCPU (indexer). Heap JVM indexera = 50% RAM, maks. 32 GB.</li>
           <li>Progi architektury: ≤200 EPS standalone · 200–1000 klaster średni · &gt;1000 klaster duży (rozdz. 4.1).</li>
         </ul>
@@ -543,8 +543,8 @@ JS = r"""
 
     /* wolumen: 1 EPS = 0,5–1 KB/s -> GB/dzień */
     var dayLo = eps * 0.0432, dayHi = eps * 0.0864;
-    /* dysk: górna granica x retencja x 1,3 narzut x 1,25 zapas */
-    var diskGB = dayHi * ret * 1.3 * 1.25;
+    /* dysk: dolna granica wolumenu x retencja x 1,3 narzut (konserwatywnie wg materiału) */
+    var diskGB = dayLo * ret * 1.3;
 
     var arch, why, machines = [], notes = [];
     var replicas = 0;
@@ -632,7 +632,7 @@ JS = r"""
     $('tDaily').textContent = fmt.format(Math.round(dayLo)) + '–' + fmt.format(Math.round(dayHi));
     var diskTB = diskGB / 1000;
     $('tDisk').textContent = diskTB >= 1 ? fmt1.format(diskTB) + ' TB' : fmt.format(Math.round(diskGB)) + ' GB';
-    $('tDiskSub').textContent = 'retencja ' + fmt.format(ret) + ' dni' + (replicas ? ' · 1 replika' : '') + ' · narzut ×1,3 · zapas ×1,25';
+    $('tDiskSub').textContent = 'retencja ' + fmt.format(ret) + ' dni' + (replicas ? ' · 1 replika' : '') + ' · narzut ×1,3 · dolna granica wolumenu';
 
     $('machRows').innerHTML = machines.map(function(m){
       var d = m[4] >= 1000 ? fmt1.format(m[4]/1000) + ' TB' : fmt.format(Math.round(m[4])) + ' GB';
