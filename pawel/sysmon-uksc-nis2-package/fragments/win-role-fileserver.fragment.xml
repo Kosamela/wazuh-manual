@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-FILESERVER">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Definicje udzialow i ustawienia SMB -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="FILESERVER-share-definition">\Services\LanmanServer\Shares</TargetObject>
+      <TargetObject condition="contains" name="FILESERVER-smb-parameters">\Services\LanmanServer\Parameters</TargetObject>
+      <TargetObject condition="contains" name="FILESERVER-smb-client-parameters">\Services\LanmanWorkstation\Parameters</TargetObject>
+    </RegistryEvent>
+    <!-- Typowe noty ransomware; dostep do plikow i ACL zbierac przez Security 4663/4670 i Wazuh FIM -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="FILESERVER-ransom-note">README_TO_DECRYPT</TargetFilename>
+      <TargetFilename condition="contains" name="FILESERVER-ransom-note">HOW_TO_DECRYPT</TargetFilename>
+      <TargetFilename condition="contains" name="FILESERVER-ransom-note">RECOVER-FILES</TargetFilename>
+      <TargetFilename condition="end with" name="FILESERVER-ransom-note">_readme.txt</TargetFilename>
+    </FileCreate>
+    <!-- Opcjonalny zakres usuniec - sciezki \Shares\ i \DFSRoots\ nalezy zastapic rzeczywistymi katalogami danych -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="FILESERVER-delete-shares-placeholder">\Shares\</TargetFilename>
+      <TargetFilename condition="contains" name="FILESERVER-delete-dfsroots-placeholder">\DFSRoots\</TargetFilename>
+    </FileDeleteDetected>
+  </EventFiltering>
+</SysmonRoleFragment>

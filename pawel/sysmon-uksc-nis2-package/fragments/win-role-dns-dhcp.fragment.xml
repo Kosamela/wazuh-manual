@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-DNS-DHCP">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Pliki stref DNS i bazy DHCP -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="DNSDHCP-dns-files">\System32\dns\</TargetFilename>
+      <TargetFilename condition="contains" name="DNSDHCP-dhcp-files">\System32\dhcp\</TargetFilename>
+      <TargetFilename condition="end with" name="DNSDHCP-zone-file">.dns</TargetFilename>
+      <TargetFilename condition="end with" name="DNSDHCP-dhcp-database">dhcp.mdb</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie danych DNS/DHCP -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="DNSDHCP-dns-delete">\System32\dns\</TargetFilename>
+      <TargetFilename condition="contains" name="DNSDHCP-dhcp-delete">\System32\dhcp\</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Konfiguracja DNS, DHCP i TCP/IP -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="DNSDHCP-dns-parameters">\Services\DNS\Parameters</TargetObject>
+      <TargetObject condition="contains" name="DNSDHCP-dns-zones">\DNS Server\Zones</TargetObject>
+      <TargetObject condition="contains" name="DNSDHCP-dhcp-parameters">\Services\DHCPServer\Parameters</TargetObject>
+      <TargetObject condition="contains" name="DNSDHCP-tcpip-parameters">\Services\Tcpip\Parameters</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

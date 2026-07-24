@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-WEB-IIS">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Webroot, konfiguracja IIS i artefakty kompilacji ASP.NET -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="IIS-webroot-create">\inetpub\wwwroot\</TargetFilename>
+      <TargetFilename condition="contains" name="IIS-config-create">\inetsrv\config\</TargetFilename>
+      <TargetFilename condition="contains" name="IIS-aspnet-temp-create">\Temporary ASP.NET Files\</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie plikow webroot i konfiguracji IIS -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="IIS-webroot-delete">\inetpub\wwwroot\</TargetFilename>
+      <TargetFilename condition="contains" name="IIS-config-delete">\inetsrv\config\</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Polaczenia inicjowane przez procesy worker IIS - wykrywanie C2 i SSRF -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="IIS-w3wp-network">\w3wp.exe</Image>
+      <Image condition="end with" name="IIS-iisexpress-network">\iisexpress.exe</Image>
+    </NetworkConnect>
+    <!-- Biblioteki ladowane z webroot lub katalogow tymczasowych ASP.NET -->
+    <ImageLoad onmatch="include">
+      <ImageLoaded condition="contains" name="IIS-dll-from-webroot">\inetpub\wwwroot\</ImageLoaded>
+      <ImageLoaded condition="contains" name="IIS-dll-from-aspnet-temp">\Temporary ASP.NET Files\</ImageLoaded>
+    </ImageLoad>
+    <!-- Konfiguracja uslug IIS/HTTP.sys -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="IIS-w3svc">\Services\W3SVC</TargetObject>
+      <TargetObject condition="contains" name="IIS-was">\Services\WAS</TargetObject>
+      <TargetObject condition="contains" name="IIS-http-parameters">\Services\HTTP\Parameters</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

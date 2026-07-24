@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-PRINT">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Sterowniki, procesory wydruku i monitory portow -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="PRINT-driver-create">\System32\spool\drivers\</TargetFilename>
+      <TargetFilename condition="contains" name="PRINT-print-processor-create">\System32\spool\prtprocs\</TargetFilename>
+      <TargetFilename condition="contains" name="PRINT-monitor-create">\System32\spool\monitors\</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie komponentow drukowania -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="PRINT-driver-delete">\System32\spool\drivers\</TargetFilename>
+      <TargetFilename condition="contains" name="PRINT-print-processor-delete">\System32\spool\prtprocs\</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Ladowanie bibliotek sterownikow i procesorow wydruku -->
+    <ImageLoad onmatch="include">
+      <ImageLoaded condition="contains" name="PRINT-driver-load">\System32\spool\drivers\</ImageLoaded>
+      <ImageLoaded condition="contains" name="PRINT-print-processor-load">\System32\spool\prtprocs\</ImageLoaded>
+    </ImageLoad>
+    <!-- Konfiguracja podsystemu wydruku -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="PRINT-monitors-reg">\Print\Monitors\</TargetObject>
+      <TargetObject condition="contains" name="PRINT-environments-reg">\Print\Environments\</TargetObject>
+      <TargetObject condition="contains" name="PRINT-providers-reg">\Print\Providers\</TargetObject>
+      <TargetObject condition="contains" name="PRINT-printers-reg">\Print\Printers\</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

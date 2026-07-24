@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-DATABASE-OTHER">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Polaczenia silnikow baz danych innych niz MSSQL -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="DBOTHER-network-postgres">\postgres.exe</Image>
+      <Image condition="end with" name="DBOTHER-network-mysql">\mysqld.exe</Image>
+      <Image condition="end with" name="DBOTHER-network-oracle">\oracle.exe</Image>
+      <Image condition="end with" name="DBOTHER-network-listener">\tnslsnr.exe</Image>
+      <Image condition="end with" name="DBOTHER-network-db2">\db2sysc.exe</Image>
+    </NetworkConnect>
+    <!-- Pliki konfiguracyjne popularnych silnikow baz danych -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="DBOTHER-pg-hba">pg_hba.conf</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-postgresql-conf">postgresql.conf</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-mysql-ini">my.ini</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-mysql-cnf">my.cnf</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-tnsnames">tnsnames.ora</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-listener">listener.ora</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie wybranych plikow danych -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="end with" name="DBOTHER-dbf-delete">.dbf</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-ibd-delete">.ibd</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-frm-delete">.frm</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-sqlite-delete">.sqlite</TargetFilename>
+      <TargetFilename condition="end with" name="DBOTHER-db-delete">.db</TargetFilename>
+    </FileDeleteDetected>
+  </EventFiltering>
+</SysmonRoleFragment>

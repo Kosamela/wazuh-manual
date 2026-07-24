@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-HYPERV">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Polaczenia procesow zarzadzania i worker VM -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="HYPERV-network-vmms">\vmms.exe</Image>
+      <Image condition="end with" name="HYPERV-network-vmwp">\vmwp.exe</Image>
+    </NetworkConnect>
+    <!-- Dyski i pliki konfiguracji maszyn wirtualnych -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="HYPERV-vhd-create">.vhd</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-vhdx-create">.vhdx</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-avhd-create">.avhd</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-avhdx-create">.avhdx</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-vmcx-create">.vmcx</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-vmrs-create">.vmrs</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-vmgs-create">.vmgs</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie dyskow i konfiguracji VM -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="end with" name="HYPERV-vhd-delete">.vhd</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-vhdx-delete">.vhdx</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-avhd-delete">.avhd</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-avhdx-delete">.avhdx</TargetFilename>
+      <TargetFilename condition="end with" name="HYPERV-vmcx-delete">.vmcx</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Konfiguracja Hyper-V -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="HYPERV-vmms-service">\Services\vmms</TargetObject>
+      <TargetObject condition="contains" name="HYPERV-virtualization">\Virtualization\</TargetObject>
+      <TargetObject condition="contains" name="HYPERV-registry">\Hyper-V\</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

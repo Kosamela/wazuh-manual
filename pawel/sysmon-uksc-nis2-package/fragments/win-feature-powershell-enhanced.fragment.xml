@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-FEATURE-POWERSHELL-ENHANCED">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Ladowanie silnika PowerShell, takze w niestandardowym hoscie -->
+    <ImageLoad onmatch="include">
+      <ImageLoaded condition="end with" name="POWERSHELL-sma-load">\System.Management.Automation.dll</ImageLoaded>
+      <ImageLoaded condition="end with" name="POWERSHELL-sma-ni-load">\System.Management.Automation.ni.dll</ImageLoaded>
+    </ImageLoad>
+    <!-- Dodatkowe artefakty PowerShell -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="POWERSHELL-ps1xml-create">.ps1xml</TargetFilename>
+      <TargetFilename condition="end with" name="POWERSHELL-clixml-create">.clixml</TargetFilename>
+    </FileCreate>
+  </EventFiltering>
+</SysmonRoleFragment>

@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-FEATURE-DEFENDER">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Dostep do procesow Defender - korelowac z Defender/Operational -->
+    <ProcessAccess onmatch="include">
+      <TargetImage condition="end with" name="DEFENDER-process-access-msmpeng">\MsMpEng.exe</TargetImage>
+      <TargetImage condition="end with" name="DEFENDER-process-access-nissrv">\NisSrv.exe</TargetImage>
+    </ProcessAccess>
+    <!-- Usuwanie kwarantanny lub historii Defender -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="DEFENDER-delete-quarantine">\ProgramData\Microsoft\Windows Defender\Quarantine\</TargetFilename>
+      <TargetFilename condition="contains" name="DEFENDER-delete-history">\ProgramData\Microsoft\Windows Defender\Scans\History\</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Zmiany konfiguracji i uslug Defender -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="DEFENDER-exclusions">\Microsoft\Windows Defender\Exclusions</TargetObject>
+      <TargetObject condition="contains" name="DEFENDER-policy">\Policies\Microsoft\Windows Defender</TargetObject>
+      <TargetObject condition="contains" name="DEFENDER-service">\Services\WinDefend</TargetObject>
+      <TargetObject condition="contains" name="DEFENDER-nis-service">\Services\WdNisSvc</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

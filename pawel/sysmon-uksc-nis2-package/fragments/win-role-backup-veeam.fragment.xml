@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-BACKUP-VEEAM">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Polaczenia procesow Veeam - przydatne do wykrywania nietypowych kierunkow -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="VEEAM-network-backup-service">\Veeam.Backup.Service.exe</Image>
+      <Image condition="end with" name="VEEAM-network-agent">\VeeamAgent.exe</Image>
+      <Image condition="end with" name="VEEAM-network-deployment">\VeeamDeploymentSvc.exe</Image>
+      <Image condition="end with" name="VEEAM-network-transport">\VeeamTransportSvc.exe</Image>
+    </NetworkConnect>
+    <!-- Metadane i konfiguracja Veeam -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="VEEAM-metadata-create">.vbm</TargetFilename>
+      <TargetFilename condition="contains" name="VEEAM-config-create">\ProgramData\Veeam\</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie plikow lancucha kopii zapasowych -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="end with" name="VEEAM-delete-full-backup">.vbk</TargetFilename>
+      <TargetFilename condition="end with" name="VEEAM-delete-incremental-backup">.vib</TargetFilename>
+      <TargetFilename condition="end with" name="VEEAM-delete-reverse-incremental">.vrb</TargetFilename>
+      <TargetFilename condition="end with" name="VEEAM-delete-metadata">.vbm</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Zmiany konfiguracji i uslug Veeam -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="VEEAM-registry">\Veeam\</TargetObject>
+      <TargetObject condition="contains" name="VEEAM-services">\Services\Veeam</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

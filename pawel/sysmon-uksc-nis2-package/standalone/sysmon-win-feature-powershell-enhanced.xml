@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Sysmon schemaversion="4.90">
+  <!-- Samodzielny profil: WIN-FEATURE-POWERSHELL-ENHANCED. Dla hosta z wieloma rolami uzyj Merge-SysmonConfig.ps1. -->
+  <!-- Profil bazowy UKSC/NIS2 - wariant zbalansowany dla Windows Server. -->
+  <!-- Sysmon uzupelnia, ale nie zastepuje kanalow Security/System/Defender/PowerShell/RDP. -->
+  <HashAlgorithms>sha256,imphash</HashAlgorithms>
+  <CheckRevocation>true</CheckRevocation>
+  <DnsLookup>false</DnsLookup>
+  <EventFiltering>
+    <!-- UWAGA: pusty filtr onmatch="include" nie wlacza wszystkich zdarzen. Dla zdarzen zbieranych w calosci uzyto onmatch="exclude" bez regul. -->
+    <!-- ID 1 - wszystkie uruchomienia procesow wraz z command line, user i parent -->
+    <ProcessCreate onmatch="exclude"/>
+    <!-- ID 5 - zakonczenie procesu; uzupelnienie osi czasu i wykrywanie naglego zaniku procesow ochronnych -->
+    <ProcessTerminate onmatch="exclude"/>
+    <!-- ID 2 - zmiana czasu utworzenia pliku / timestomping -->
+    <FileCreateTime onmatch="exclude"/>
+    <!-- ID 6 - zaladowanie sterownika -->
+    <DriverLoad onmatch="exclude"/>
+    <!-- ID 8 - wstrzykiwanie watku do innego procesu -->
+    <CreateRemoteThread onmatch="exclude"/>
+    <!-- ID 9 - bezposredni odczyt dysku -->
+    <RawAccessRead onmatch="exclude"/>
+    <!-- ID 15 - alternatywne strumienie danych NTFS -->
+    <FileCreateStreamHash onmatch="exclude"/>
+    <!-- ID 19-21 - trwale subskrypcje i aktywnosc WMI -->
+    <WmiEvent onmatch="exclude"/>
+    <!-- ID 22 - zapytania DNS wykonywane przez procesy -->
+    <DnsQuery onmatch="exclude"/>
+    <!-- ID 25 - manipulacja obrazem procesu -->
+    <ProcessTampering onmatch="exclude"/>
+    <!-- ID 29 - wykrycie nowego pliku wykonywalnego PE -->
+    <FileExecutableDetected onmatch="exclude"/>
+    <!-- ID 10 - dostep do LSASS; natywne zdarzenia uwierzytelnienia nadal pochodza z Security -->
+    <ProcessAccess onmatch="include">
+      <TargetImage condition="end with" name="BASE-credential-access-lsass">\lsass.exe</TargetImage>
+    </ProcessAccess>
+    <!-- ID 3 - polaczenia sieciowe procesow podwyzszonego ryzyka i z lokalizacji zapisywalnych przez uzytkownika -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="BASE-network-risky-powershell-exe">\powershell.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-pwsh-exe">\pwsh.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-wscript-exe">\wscript.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-cscript-exe">\cscript.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-mshta-exe">\mshta.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-rundll32-exe">\rundll32.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-regsvr32-exe">\regsvr32.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-certutil-exe">\certutil.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-bitsadmin-exe">\bitsadmin.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-curl-exe">\curl.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-wget-exe">\wget.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-ftp-exe">\ftp.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-tftp-exe">\tftp.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-ssh-exe">\ssh.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-scp-exe">\scp.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-psexec-exe">\psexec.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-paexec-exe">\paexec.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-wmic-exe">\wmic.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-msiexec-exe">\msiexec.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-hh-exe">\hh.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-installutil-exe">\installutil.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-regasm-exe">\regasm.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-regsvcs-exe">\regsvcs.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-msbuild-exe">\msbuild.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-csc-exe">\csc.exe</Image>
+      <Image condition="end with" name="BASE-network-risky-jsc-exe">\jsc.exe</Image>
+      <Image condition="contains" name="BASE-network-user-writable">\AppData\</Image>
+      <Image condition="contains" name="BASE-network-user-writable">\Users\Public\</Image>
+      <Image condition="contains" name="BASE-network-user-writable">\Windows\Temp\</Image>
+      <Image condition="contains" name="BASE-network-user-writable">\Temp\</Image>
+      <Image condition="contains" name="BASE-network-user-writable">\Downloads\</Image>
+    </NetworkConnect>
+    <!-- ID 7 - zaladowanie bibliotek z lokalizacji podwyzszonego ryzyka -->
+    <ImageLoad onmatch="include">
+      <ImageLoaded condition="contains" name="BASE-imageload-user-writable">\AppData\</ImageLoaded>
+      <ImageLoaded condition="contains" name="BASE-imageload-user-writable">\Users\Public\</ImageLoaded>
+      <ImageLoaded condition="contains" name="BASE-imageload-user-writable">\Windows\Temp\</ImageLoaded>
+      <ImageLoaded condition="contains" name="BASE-imageload-user-writable">\Temp\</ImageLoaded>
+      <ImageLoaded condition="contains" name="BASE-imageload-user-writable">\Downloads\</ImageLoaded>
+      <ImageLoaded condition="contains" name="BASE-imageload-user-writable">\inetpub\wwwroot\</ImageLoaded>
+    </ImageLoad>
+    <!-- ID 11 - pliki w lokalizacjach trwalosci oraz skrypty i kontenery czesto naduzywane -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="BASE-file-startup">\Start Menu\Programs\Startup\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-file-scheduled-tasks">\System32\Tasks\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-file-scheduled-tasks-wow64">\SysWOW64\Tasks\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-file-drivers">\System32\drivers\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-file-gpo-machine-scripts">\Windows\System32\GroupPolicy\Machine\Scripts\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-file-gpo-user-scripts">\Windows\System32\GroupPolicy\User\Scripts\</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-ps1">.ps1</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-psm1">.psm1</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-psd1">.psd1</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-vbs">.vbs</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-vbe">.vbe</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-js">.js</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-jse">.jse</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-wsf">.wsf</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-wsh">.wsh</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-hta">.hta</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-cmd">.cmd</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-bat">.bat</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-lnk">.lnk</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-chm">.chm</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-iso">.iso</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-script-or-container-img">.img</TargetFilename>
+    </FileCreate>
+    <!-- ID 12-14 - trwalosc, uslugi, zapora, Defender, PowerShell i ustawienia bezpieczenstwa -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="BASE-reg-run-keys">\Software\Microsoft\Windows\CurrentVersion\Run</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-runonce-keys">\Software\Microsoft\Windows\CurrentVersion\RunOnce</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-winlogon">\Microsoft\Windows NT\CurrentVersion\Winlogon</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-ifeo">\Image File Execution Options\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-silent-process-exit">\SilentProcessExit\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-appinit-dlls">\AppInit_DLLs</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-appcert-dlls">\AppCertDlls</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-known-dlls">\KnownDLLs</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-services">\SYSTEM\CurrentControlSet\Services\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-lsa">\Control\Lsa\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-security-providers">\SecurityProviders\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-wdigest">\WDigest</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-terminal-server">\Control\Terminal Server\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-windows-firewall">\WindowsFirewall\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-firewall-policy">\FirewallPolicy\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-defender-policy">\Policies\Microsoft\Windows Defender</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-defender-exclusions">\Microsoft\Windows Defender\Exclusions</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-powershell-policy">\Policies\Microsoft\Windows\PowerShell</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-powershell">\Microsoft\PowerShell\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-taskcache">\Schedule\TaskCache\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-print-monitors">\Print\Monitors\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-print-environments">\Print\Environments\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-print-providers">\Print\Providers\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-network-provider-order">\NetworkProvider\Order</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-safeboot">\SafeBoot\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-wmi-autologger">\WMI\Autologger\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-group-policy-scripts">\Group Policy\Scripts\</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-uac-bypass-ms-settings">\Software\Classes\ms-settings\shell\open\command</TargetObject>
+      <TargetObject condition="contains" name="BASE-reg-uac-bypass-mscfile">\Software\Classes\mscfile\shell\open\command</TargetObject>
+    </RegistryEvent>
+    <!-- ID 17-18 - nazwane potoki powiazane z narzedziami zdalnego wykonania i C2 -->
+    <PipeEvent onmatch="include">
+      <PipeName condition="contains" name="BASE-pipe-psexec">\PSEXESVC</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-paexec">\PAExec</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-remcom">\RemCom</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-csexec">\csexecsvc</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-postex">\postex_</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-msagent">\msagent_</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-win-sess">\win_sess_</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-grunt">\gruntsvc</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-meterpreter">\meterpreter</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-poshc2">\PoshC2</PipeName>
+      <PipeName condition="contains" name="BASE-pipe-cobalt">\Cobalt</PipeName>
+    </PipeEvent>
+    <!-- ID 26 - usuniecia w lokalizacjach podwyzszonego ryzyka bez archiwizowania tresci -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="BASE-delete-startup">\Start Menu\Programs\Startup\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-delete-scheduled-tasks">\System32\Tasks\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-delete-windows-temp">\Windows\Temp\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-delete-users-public">\Users\Public\</TargetFilename>
+      <TargetFilename condition="contains" name="BASE-delete-iis-webroot">\inetpub\wwwroot\</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-ps1">.ps1</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-psm1">.psm1</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-vbs">.vbs</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-vbe">.vbe</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-js">.js</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-jse">.jse</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-wsf">.wsf</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-hta">.hta</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-cmd">.cmd</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-bat">.bat</TargetFilename>
+      <TargetFilename condition="end with" name="BASE-delete-script-lnk">.lnk</TargetFilename>
+    </FileDeleteDetected>
+    <!-- DODATKI ROLI WIN-FEATURE-POWERSHELL-ENHANCED -->
+    <!-- Ladowanie silnika PowerShell, takze w niestandardowym hoscie -->
+    <ImageLoad onmatch="include">
+      <ImageLoaded condition="end with" name="POWERSHELL-sma-load">\System.Management.Automation.dll</ImageLoaded>
+      <ImageLoaded condition="end with" name="POWERSHELL-sma-ni-load">\System.Management.Automation.ni.dll</ImageLoaded>
+    </ImageLoad>
+    <!-- Dodatkowe artefakty PowerShell -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="POWERSHELL-ps1xml-create">.ps1xml</TargetFilename>
+      <TargetFilename condition="end with" name="POWERSHELL-clixml-create">.clixml</TargetFilename>
+    </FileCreate>
+  </EventFiltering>
+</Sysmon>

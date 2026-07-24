@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-DATABASE-MSSQL">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Polaczenia inicjowane przez silnik i agenta SQL Server -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="MSSQL-network-engine">\sqlservr.exe</Image>
+      <Image condition="end with" name="MSSQL-network-agent">\SQLAGENT.EXE</Image>
+    </NetworkConnect>
+    <!-- Pliki baz, kopii i binaria SQL Server -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="MSSQL-mdf-create">.mdf</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-ndf-create">.ndf</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-ldf-create">.ldf</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-backup-create">.bak</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-log-backup-create">.trn</TargetFilename>
+      <TargetFilename condition="contains" name="MSSQL-binn-change">\MSSQL\Binn\</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie plikow danych i kopii SQL Server -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="end with" name="MSSQL-mdf-delete">.mdf</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-ndf-delete">.ndf</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-ldf-delete">.ldf</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-backup-delete">.bak</TargetFilename>
+      <TargetFilename condition="end with" name="MSSQL-log-backup-delete">.trn</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Konfiguracja instancji i uslug SQL Server -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="MSSQL-registry">\Microsoft\Microsoft SQL Server\</TargetObject>
+      <TargetObject condition="contains" name="MSSQL-services">\Services\MSSQL</TargetObject>
+      <TargetObject condition="contains" name="MSSQL-agent-service">\Services\SQLAgent</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

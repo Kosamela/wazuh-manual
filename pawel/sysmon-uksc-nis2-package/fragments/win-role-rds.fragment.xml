@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-RDS">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Polaczenia RDP; logowanie sesji i uwierzytelnienia pochodzi z Security i TerminalServices -->
+    <NetworkConnect onmatch="include">
+      <DestinationPort condition="is" name="RDS-destination-3389">3389</DestinationPort>
+      <SourcePort condition="is" name="RDS-source-3389">3389</SourcePort>
+    </NetworkConnect>
+    <!-- Zmiany konfiguracji RDP -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="RDS-terminal-server-config">\Control\Terminal Server\</TargetObject>
+      <TargetObject condition="contains" name="RDS-client-config">\Terminal Server Client\</TargetObject>
+    </RegistryEvent>
+    <!-- Artefakty tworzone w profilach sesji RDS - dostroic po pomiarze wolumenu -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="RDS-user-temp">\AppData\Local\Temp\</TargetFilename>
+    </FileCreate>
+  </EventFiltering>
+</SysmonRoleFragment>

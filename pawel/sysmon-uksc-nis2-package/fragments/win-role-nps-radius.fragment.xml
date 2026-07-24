@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-NPS-RADIUS">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Konfiguracja NPS/IAS; dzienniki uwierzytelnienia zbierac z kanalow NPS i plikow IAS -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="NPS-ias-config">\System32\ias\</TargetFilename>
+      <TargetFilename condition="end with" name="NPS-ias-xml">ias.xml</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie konfiguracji NPS/IAS -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="NPS-ias-delete">\System32\ias\</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Konfiguracja NPS/RADIUS -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="NPS-ias-service">\Services\IAS</TargetObject>
+      <TargetObject condition="contains" name="NPS-remote-access-policy">\RemoteAccess\Policy</TargetObject>
+      <TargetObject condition="contains" name="NPS-registry">\NPS\</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>

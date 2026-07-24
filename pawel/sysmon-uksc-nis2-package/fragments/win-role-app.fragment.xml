@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-APP">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Polaczenia typowych runtime aplikacyjnych; dostroic do rzeczywistych procesow uslugi -->
+    <NetworkConnect onmatch="include">
+      <Image condition="end with" name="APP-network-java">\java.exe</Image>
+      <Image condition="end with" name="APP-network-javaw">\javaw.exe</Image>
+      <Image condition="end with" name="APP-network-dotnet">\dotnet.exe</Image>
+      <Image condition="end with" name="APP-network-node">\node.exe</Image>
+      <Image condition="end with" name="APP-network-python">\python.exe</Image>
+      <Image condition="end with" name="APP-network-php">\php.exe</Image>
+      <Image condition="end with" name="APP-network-ruby">\ruby.exe</Image>
+    </NetworkConnect>
+    <!-- Artefakty wdrozeniowe i typowe katalogi aplikacji -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="end with" name="APP-jar-create">.jar</TargetFilename>
+      <TargetFilename condition="end with" name="APP-war-create">.war</TargetFilename>
+      <TargetFilename condition="end with" name="APP-ear-create">.ear</TargetFilename>
+      <TargetFilename condition="end with" name="APP-properties-create">.properties</TargetFilename>
+      <TargetFilename condition="end with" name="APP-yaml-create">.yaml</TargetFilename>
+      <TargetFilename condition="end with" name="APP-yml-create">.yml</TargetFilename>
+      <TargetFilename condition="contains" name="APP-root-create">\Applications\</TargetFilename>
+      <TargetFilename condition="contains" name="APP-root-create">\Apps\</TargetFilename>
+    </FileCreate>
+    <!-- Usuwanie artefaktow aplikacji -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="end with" name="APP-jar-delete">.jar</TargetFilename>
+      <TargetFilename condition="end with" name="APP-war-delete">.war</TargetFilename>
+      <TargetFilename condition="end with" name="APP-ear-delete">.ear</TargetFilename>
+      <TargetFilename condition="contains" name="APP-root-delete">\Applications\</TargetFilename>
+      <TargetFilename condition="contains" name="APP-root-delete">\Apps\</TargetFilename>
+    </FileDeleteDetected>
+  </EventFiltering>
+</SysmonRoleFragment>

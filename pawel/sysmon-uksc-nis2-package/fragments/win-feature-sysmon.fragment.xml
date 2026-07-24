@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-FEATURE-SYSMON">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Brak dodatkowych filtrow Sysmon; rola wymaga przede wszystkim zebrania odpowiednich kanalow Windows przez Wazuh. -->
+  </EventFiltering>
+</SysmonRoleFragment>

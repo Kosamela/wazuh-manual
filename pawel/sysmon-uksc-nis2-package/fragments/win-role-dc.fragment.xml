@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SysmonRoleFragment name="WIN-ROLE-DC">
+  <!-- Fragment nie jest samodzielna konfiguracja Sysmon. Polacz go z profilem bazowym skryptem Merge-SysmonConfig.ps1. -->
+  <EventFiltering>
+    <!-- Kopie bazy AD oraz zmiany SYSVOL/GPO -->
+    <FileCreate onmatch="include">
+      <TargetFilename condition="contains" name="DC-ntds-copy">NTDS.dit</TargetFilename>
+      <TargetFilename condition="contains" name="DC-sysvol-change">\SYSVOL\</TargetFilename>
+      <TargetFilename condition="contains" name="DC-group-policy-change">\GroupPolicy\</TargetFilename>
+    </FileCreate>
+    <!-- Usuniecia artefaktow AD/GPO -->
+    <FileDeleteDetected onmatch="include">
+      <TargetFilename condition="contains" name="DC-ntds-delete">NTDS.dit</TargetFilename>
+      <TargetFilename condition="contains" name="DC-sysvol-delete">\SYSVOL\</TargetFilename>
+      <TargetFilename condition="contains" name="DC-group-policy-delete">\GroupPolicy\</TargetFilename>
+    </FileDeleteDetected>
+    <!-- Konfiguracja AD DS, Netlogon, DNS i GPO -->
+    <RegistryEvent onmatch="include">
+      <TargetObject condition="contains" name="DC-ntds-parameters">\Services\NTDS\Parameters</TargetObject>
+      <TargetObject condition="contains" name="DC-netlogon-parameters">\Services\Netlogon\Parameters</TargetObject>
+      <TargetObject condition="contains" name="DC-dns-zones">\DNS Server\Zones</TargetObject>
+      <TargetObject condition="contains" name="DC-group-policy-registry">\Group Policy\</TargetObject>
+    </RegistryEvent>
+  </EventFiltering>
+</SysmonRoleFragment>
