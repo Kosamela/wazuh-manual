@@ -349,7 +349,7 @@ tbody tr:hover{background:var(--surface2)}
 </ul>
 <h3 id="12-jak-korzystac-z-instrukcji">1.2 Jak korzystać z instrukcji</h3>
 <ul>
-<li>Etapy wdrożenia (rozdziały 4–8) wykonuj <strong>w kolejności</strong> — każdy bazuje na poprzednim.</li>
+<li>Etapy wdrożenia (rozdziały 4–9) wykonuj <strong>w kolejności</strong> — każdy bazuje na poprzednim.</li>
 <li>Bloki <code>bash</code> / <code>yaml</code> / <code>xml</code> / <code>json</code> zawierają komendy i konfiguracje do bezpośredniego użycia. Wartości do podmiany oznaczono <code>&lt;NAWIASAMI_OSTRYMI&gt;</code> lub zmiennymi (<code>$NODE_NAME</code>).</li>
 <li>Ramki <strong>⚠️ Uwaga</strong> opisują błędy, które realnie zatrzymują wdrożenia — nie pomijaj ich.</li>
 <li>Rozdział 9 (<strong>Troubleshooting</strong>) zbiera objawy i rozwiązania — wróć do niego przy każdym nieoczekiwanym zachowaniu platformy.</li>
@@ -816,7 +816,7 @@ tbody tr:hover{background:var(--surface2)}
 </tr>
 </tbody>
 </table></div>
-<p class="co co-warn"><strong>Najczęstsze błędy sizingu</strong> (z realnych wdrożeń): za mało indexerów (klaster "siada" pod obciążeniem), dyski HDD zamiast SSD, brak polityki retencji (dysk zapełnia się do 100% — patrz rozdz. 9.3), heap JVM &gt; 32 GB.</p>
+<p class="co co-warn"><strong>Najczęstsze błędy sizingu</strong> (z realnych wdrożeń): za mało indexerów (klaster "siada" pod obciążeniem), dyski HDD zamiast SSD, brak polityki retencji (dysk zapełnia się do 100% — patrz rozdz. 10.3), heap JVM &gt; 32 GB.</p>
 <h3 id="45-okreslenie-retencji-logow">4.5 Określenie retencji logów</h3>
 <ul>
 <li><strong>Punkt wyjścia: 90 dni</strong> danych "online" (przeszukiwalnych w Dashboardzie) — to typowy standard operacyjny SOC.</li>
@@ -1037,7 +1037,7 @@ tar -cvf ./wazuh-certificates.tar -C ./wazuh-certificates/ .
 <pre><code class="language-bash">scp ./wazuh-certificates.tar root@10.0.10.11:/root/
 # ... i analogicznie na pozostałe węzły
 </code></pre>
-<p class="co co-warn">- Certyfikaty są domyślnie ważne <strong>3650 dni (10 lat)</strong> — dla zgodności z NIS2/polityką PKI rozważ skrócenie i wpisz datę ważności do dokumentacji (samo nie wygaśnie "z alarmem"; patrz rozdz. 9.9).
+<p class="co co-warn">- Certyfikaty są domyślnie ważne <strong>3650 dni (10 lat)</strong> — dla zgodności z NIS2/polityką PKI rozważ skrócenie i wpisz datę ważności do dokumentacji (samo nie wygaśnie "z alarmem"; patrz rozdz. 10.9).
 - Skrypty generujące to rozwiązanie wygodne, ale w organizacjach z własnym <strong>PKI</strong> certyfikaty powinny pochodzić z firmowego CA (możesz podać własne CA do podpisu; do lekkiego, samodzielnego PKI z ACME warto rozważyć np. Smallstep CA).</p>
 <h4 id="622-krok-2-instalacja-wazuh-indexer-kazdy-weze">6.2.2 Krok 2 — instalacja Wazuh Indexer (każdy węzeł)</h4>
 <p>Repozytorium pakietów (Debian/Ubuntu):</p>
@@ -1477,7 +1477,7 @@ Jeśli klaster przeszedł w <strong>RED</strong> — nie ustawiłeś replik (wr�
 </tr>
 <tr>
 <td>Procedury awaryjne</td>
-<td>co robić przy awarii mastera / indexera / zapełnieniu dysku (odnośniki do rozdz. 9)</td>
+<td>co robić przy awarii mastera / indexera / zapełnieniu dysku (odnośniki do rozdz. 10)</td>
 </tr>
 </tbody>
 </table></div>
@@ -1709,11 +1709,321 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </ul>
 <p class="co co-check"><strong>Etap 5:</strong> logowanie kontami imiennymi działa (Admin/SOC/Audytor przetestowane), <code>run_as: true</code>, konto <code>admin</code> w sejfie, enrollment zabezpieczony hasłem, audit log zbiera zdarzenia logowania, ISM aktywne ("Managed by policy"), logrotate skonfigurowany, SSO/MFA wdrożone lub formalnie odroczone decyzją klienta.</p>
 <hr />
-<h2 id="9-troubleshooting-najczestsze-problemy-i-przypadki-brzegowe">9. Troubleshooting — najczęstsze problemy i przypadki brzegowe</h2>
+<h2 id="9-etap-6-monitorowanie-koncowek-windows-sysmon-kanay-zdarzen-ukscnis2">9. ETAP 6 — Monitorowanie końcówek Windows (Sysmon + kanały zdarzeń, UKSC/NIS2)</h2>
+<blockquote>
+<p>Autor części: <strong>Paweł</strong>. Rozdział opisuje warstwę <strong>telemetrii</strong> dla serwerów Windows — co i jak zbierać, aby wesprzeć wymagania UKSC/NIS2 (ciągłe monitorowanie, wykrywanie incydentów, analiza dowodowa, ochrona przed nieuprawnioną modyfikacją). Materiał źródłowy i gotowe pliki: <code>pawel/sysmon-uksc-nis2-package/</code> (profile Sysmon, fragmenty, narzędzie scalające, macierze, raport) oraz <code>pawel/wazuh-windows-groups/</code> (grupy Wazuh z <code>agent.conf</code>).</p>
+<p><strong>Zakres:</strong> to jest warstwa <strong>zbierania telemetrii</strong>, nie warstwa reguł. Sama konfiguracja jest środkiem technicznym; zgodności z UKSC/NIS2 nie da się stwierdzić na podstawie samego XML-a. Reguły detekcji Wazuha (pula 100000+) to kolejny krok — patrz „Uwagi recenzyjne" na końcu dokumentu.</p>
+</blockquote>
+<p>Przekazane wcześniej pliki Sysmon były poprawne składniowo jako XML, ale nie zapewniały wymaganego zakresu monitorowania. Najpoważniejszy błąd dotyczył semantyki pustych filtrów <code>onmatch="include"</code>: taki zapis <strong>nie</strong> oznacza „zbieraj wszystko" — przeciwnie, wyłączał praktycznie wszystkie filtrowalne typy zdarzeń. W tym etapie stosujemy profile z poprawną logiką: <code>onmatch="exclude"</code> bez reguł dla zdarzeń zbieranych w całości oraz filtrowany <code>include</code> dla zdarzeń wysokowolumenowych.</p>
+<h3 id="91-model-telemetrii-baseline-role">9.1 Model telemetrii: baseline + role</h3>
+<p>Sysmon korzysta z <strong>jednej</strong> aktywnej konfiguracji, a agent Wazuh może należeć do <strong>wielu grup</strong> jednocześnie. Telemetrię budujemy więc jako profil bazowy plus dokładnie te role, które host faktycznie pełni.</p>
+<p>Założenia projektowe (z <code>wazuh-windows-groups/README.md</code>):</p>
+<ol>
+<li>Każdy agent ma <strong>WIN-SERVER-BASELINE</strong> oraz dokładnie właściwe role.</li>
+<li>Feature'y (Defender, PowerShell-enhanced, Sysmon) przypisuje się tylko, gdy komponent faktycznie istnieje i logowanie jest włączone.</li>
+<li>Zdarzenia 4662, 4663, 4670, 5136-5141 i 6272-6280 wymagają właściwej <strong>Advanced Audit Policy</strong>, a audyt obiektowy dodatkowo <strong>SACL</strong>.</li>
+<li>Kanały Analytical/Operational mogą być domyślnie wyłączone; przed przypisaniem grupy trzeba je zweryfikować i, jeżeli polityka klienta na to pozwala, włączyć.</li>
+<li>WIN-ROLE-DATABASE-OTHER i WIN-ROLE-APP są szablonami organizacyjnymi. Dedykowane pliki logów muszą znaleźć się w podgrupach konkretnego produktu, ponieważ nie istnieje jedna bezpieczna, uniwersalna ścieżka.</li>
+<li>W IIS monitoring całego <code>wwwroot</code> przez realtime FIM może być kosztowny dla aplikacji generujących pliki. W takich przypadkach ograniczyć zakres do katalogów <code>bin</code>/<code>config</code> i statycznej treści.</li>
+</ol>
+<p>Grupy przygotowane w pakiecie (baseline + 3 feature'y + 12 ról): WIN-SERVER-BASELINE, WIN-FEATURE-DEFENDER, WIN-FEATURE-POWERSHELL-ENHANCED, WIN-FEATURE-SYSMON, WIN-ROLE-DC, WIN-ROLE-FILESERVER, WIN-ROLE-RDS, WIN-ROLE-DATABASE-MSSQL, WIN-ROLE-DATABASE-OTHER, WIN-ROLE-WEB-IIS, WIN-ROLE-APP, WIN-ROLE-DNS-DHCP, WIN-ROLE-NPS-RADIUS, WIN-ROLE-HYPERV, WIN-ROLE-BACKUP-VEEAM, WIN-ROLE-PRINT.</p>
+<h3 id="92-warunki-wstepne-na-windows">9.2 Warunki wstępne na Windows</h3>
+<p>Zanim telemetria zacznie mieć sens, na hoście muszą być włączone właściwe źródła. Sprawdź kanały obecne na serwerze oraz politykę audytu:</p>
+<pre><code class="language-powershell">Get-WinEvent -ListLog * | Where-Object IsEnabled | Select-Object LogName
+auditpol /get /category:*
+</code></pre>
+<ul>
+<li><strong>Advanced Audit Policy</strong> — wiele wymaganych EventID (logowania, konta, grupy, zmiany polityk, dostęp do katalogu) powstaje tylko przy poprawnej polityce audytu; dostęp obiektowy dodatkowo wymaga <strong>SACL</strong> na chronionych zasobach.</li>
+<li><strong>PowerShell logging</strong> — włącz Script Block Logging i Module Logging (GPO: <em>Computer Configuration → Administrative Templates → Windows Components → Windows PowerShell</em>, albo przez rejestr <code>HKLM:\Software\Policies\Microsoft\Windows\PowerShell\...</code>), a następnie <code>gpupdate /force</code>. Bez tego kanał <code>PowerShell/Operational</code> nie niesie treści skryptów.</li>
+<li><strong>Kanały Analytical/Operational</strong> (np. DNS Server, RDP/TerminalServices, Hyper-V) bywają domyślnie wyłączone — włącz je zgodnie z polityką klienta przed przypisaniem odpowiedniej roli.</li>
+</ul>
+<p class="co co-warn"><strong>język systemu:</strong> polskojęzyczny Windows wysyła treść zdarzeń Security/System po polsku, co utrudnia dekodowanie i dopasowanie reguł. Filtrowanie po EventID jest językowo-niezależne, a XML Sysmona i tak jest po angielsku, ale przy pisaniu reguł na wartości pól należy się z tym liczyć (patrz metodyka kursu: instalacja Windows po angielsku, mapowanie CIS→PL).</p>
+<h3 id="93-instalacja-i-konfiguracja-sysmon">9.3 Instalacja i konfiguracja Sysmon</h3>
+<p>Sysmon pochodzi z pakietu <strong>Sysinternals</strong> (Microsoft). Konfigurację dobierz do ról hosta:</p>
+<ul>
+<li><strong>Host jednorolowy</strong> — użyj gotowego, samodzielnego profilu z katalogu <code>sysmon-uksc-nis2-package/standalone/</code> (np. <code>sysmon-win-role-web-iis.xml</code>).</li>
+<li><strong>Host wielorolowy</strong> — nie stosuj kolejno kilku plików ról (Sysmon nie działa jak „overlay"). Zbuduj <strong>jeden</strong> aktywny plik narzędziem <code>tools/Merge-SysmonConfig.ps1</code>, podając wszystkie role hosta:</li>
+</ul>
+<pre><code class="language-powershell">.\tools\Merge-SysmonConfig.ps1 `
+  -Roles WIN-FEATURE-DEFENDER,WIN-FEATURE-POWERSHELL-ENHANCED,WIN-ROLE-WEB-IIS,WIN-ROLE-APP `
+  -OutputPath C:\ProgramData\Sysmon\sysmon-merged.xml
+</code></pre>
+<p>Walidacja przed produkcją (obowiązkowa — XML-e przygotowano dla schematu 4.90, ale nie były walidowane binarką w infrastrukturze klienta):</p>
+<ol>
+<li>Wykonaj kopię aktywnej konfiguracji: <code>Sysmon64.exe -c &gt; C:\ProgramData\Sysmon\sysmon-current.txt</code>.</li>
+<li>Sprawdź wersję i schemat binariów: <code>Sysmon64.exe -? config</code> oraz <code>Sysmon64.exe -s</code>.</li>
+<li>Zastosuj konfigurację na serwerze testowym/canary: <code>Sysmon64.exe -c C:\ProgramData\Sysmon\sysmon-merged.xml</code>.</li>
+<li>Potwierdź komunikat walidacji i brak zdarzeń błędu Sysmon ID 255.</li>
+<li>Zweryfikuj zdarzenia ID 1, 3, 5, 6, 8, 9, 10, 11-15, 17-22, 25, 26 i 29 oraz niefiltrowalne ID 4 i 16.</li>
+<li>Sprawdź w Wazuh, czy zdarzenia dochodzą z kanału <code>Microsoft-Windows-Sysmon/Operational</code> i czy nie są dublowane przez kilka bloków <code>localfile</code>.</li>
+<li>Przez 7-14 dni zmierz EPS, rozmiar dziennika, opóźnienie agenta i użycie CPU/dysku. Następnie dodaj wyłączenia wyłącznie dla potwierdzonych, powtarzalnych zdarzeń benign.</li>
+</ol>
+<h3 id="94-wpiecie-kanaow-zdarzen-do-wazuha">9.4 Wpięcie kanałów zdarzeń do Wazuha</h3>
+<p>Kanały Windows wpina się do agenta blokami <code>localfile</code> z <code>log_format</code> = <code>eventchannel</code>. Sysmon nie zastępuje natywnych dzienników — logowania, konta, hasła, grupy, polityki audytu, czyszczenie logów, RDP i dostęp obiektowy <strong>nie są</strong> zdarzeniami Sysmon i muszą pozostać w konfiguracji eventchannel. Minimalny zestaw kanałów uzupełniających znajduje się w <code>sysmon-uksc-nis2-package/wazuh-eventchannels-minimum-fragment.xml</code>; pełne, per-grupowe <code>agent.conf</code> — w <code>wazuh-windows-groups/</code>.</p>
+<p>W tym podejściu filtrowanie EventID odbywa się już w <code>&lt;query&gt;</code> (u źródła), co obniża wolumen na łączu i w indekserze — kanał Security jest rozbity na rozłączne bloki, każdy poniżej limitu złożoności XPath. To świadoma decyzja projektowa; alternatywą jest zbieranie szerokie i filtrowanie w regułach Wazuha (obie drogi są poprawne).</p>
+<p class="co co-warn"><strong>dublowanie:</strong> kanał <code>Microsoft-Windows-Sysmon/Operational</code> jest zbierany przez grupę <code>WIN-FEATURE-SYSMON</code>; nie dokładaj go równolegle z fragmentu minimalnego, aby nie dublować <code>localfile</code> i nie liczyć zdarzeń podwójnie.</p>
+<h3 id="95-wdrozenie-grup-agentow">9.5 Wdrożenie grup agentów</h3>
+<ol>
+<li>Skopiuj <code>agent.conf</code> każdej grupy do <code>/var/ossec/etc/shared/NAZWA_GRUPY/</code> na Wazuh Managerze.</li>
+<li><strong>Bezwzględnie</strong> zwaliduj konfigurację walidatorem właściwym dla wersji Wazuh w środowisku:</li>
+</ol>
+<pre><code class="language-bash">/var/ossec/bin/verify-agent-conf -f /var/ossec/etc/shared/NAZWA_GRUPY/agent.conf
+</code></pre>
+<ol start="3">
+<li>Przypisz agenta do <strong>WIN-SERVER-BASELINE</strong> oraz właściwych ról (GUI: <em>Server management → Endpoint Groups</em>, albo CLI <code>/var/ossec/bin/agent_groups</code>). Konfiguracje z wielu grup zostaną scalone i pobrane przez agenta.</li>
+</ol>
+<h3 id="96-fim-na-windows">9.6 FIM na Windows</h3>
+<p>Profil bazowy monitoruje realtime kluczowe punkty persystencji (Startup, GroupPolicy, Tasks, <code>drivers\etc</code>) oraz — w sposób <strong>celowany</strong> — katalogi systemowe zawężone do konkretnych binariów (LOLBins: <code>cmd</code>, <code>powershell</code>, <code>wmic</code>, <code>certutil</code>, <code>rundll32</code>, <code>regsvr32</code>, <code>mshta</code>, <code>bitsadmin</code>, <code>schtasks</code>…) przez <code>restrict=</code> i <code>recursion_level=0</code>, z <code>ignore</code> na szumie (<code>WinSxS</code>, <code>SoftwareDistribution</code>). To realizuje zasadę „nie monitoruj wszystkiego": realtime FIM na zbyt wielu folderach × wielu końcówkach zdławi wydajność. W IIS ogranicz zakres do <code>bin</code>/<code>config</code> i treści statycznej zamiast całego <code>wwwroot</code>.</p>
+<h3 id="97-testy-akceptacyjne">9.7 Testy akceptacyjne</h3>
+<ul>
+<li>uruchomienie PowerShell/cmd/certutil i sprawdzenie Sysmon ID 1;</li>
+<li>połączenie PowerShell do hosta testowego i sprawdzenie ID 3;</li>
+<li>utworzenie skryptu <code>.ps1</code> w katalogu tymczasowym i sprawdzenie ID 11;</li>
+<li>utworzenie pliku PE w katalogu testowym i sprawdzenie ID 29;</li>
+<li>utworzenie wartości Run w rejestrze i sprawdzenie ID 12/13;</li>
+<li>instalacja testowej usługi i korelacja Sysmon 1/11/12-13/29 z Security 4697 i System 7045;</li>
+<li>zmiana ustawień zapory i korelacja ProcessCreate/RegistryEvent z Security 4946-4957;</li>
+<li>aktualizacja konfiguracji Sysmon i sprawdzenie ID 16;</li>
+<li>zatrzymanie/uruchomienie Sysmon na canary i sprawdzenie ID 4;</li>
+<li>dla RDS: logowanie udane i nieudane oraz korelacja Security/TerminalServices z Sysmon;</li>
+<li>dla DC: kontrolowana zmiana GPO i sprawdzenie SYSVOL + Security/Directory Service;</li>
+<li>dla file servera: dostęp do folderu z SACL i sprawdzenie Security 4663/4670; Sysmon nie zastępuje tego testu;</li>
+<li>dla IIS: utworzenie pliku w webroot i kontrolowane uruchomienie procesu potomnego <code>w3wp</code> na środowisku testowym;</li>
+<li>dla Veeam/DB/Hyper-V: test jedynie na nieprodukcyjnych artefaktach.</li>
+</ul>
+<h3 id="98-macierz-pokrycia-windowswazuh-vs-sysmon">9.8 Macierz pokrycia: Windows/Wazuh vs Sysmon</h3>
+<p>„Pokryte warstwowo" oznacza, że zgodność dowodowa wymaga <strong>jednocześnie</strong> natywnych dzienników Windows i Sysmon — sam Sysmon nie spełnia tego zakresu.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Wymagany obszar</th>
+<th>Źródło autorytatywne w Windows/Wazuh</th>
+<th>Rola Sysmon</th>
+<th>Ocena po zmianie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Logowania udane i nieudane</td>
+<td>Security 4624/4625; dla RDP także TerminalServices</td>
+<td>Korelacja procesu, LogonGuid, user i sieci; nie potwierdza sukcesu/porażki</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Logowania administracyjne</td>
+<td>Security 4672, 4648 i kontekst grup/SID</td>
+<td>Procesy uruchomione w sesji, poziom integralności, parent/command line</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Blokady kont</td>
+<td>Security 4740</td>
+<td>Brak zdarzenia równoważnego</td>
+<td>Wazuh/Windows wymagany</td>
+</tr>
+<tr>
+<td>Zmiany i reset haseł</td>
+<td>Security 4723/4724</td>
+<td>Brak zdarzenia równoważnego</td>
+<td>Wazuh/Windows wymagany</td>
+</tr>
+<tr>
+<td>Tworzenie/usuwanie/modyfikacja kont</td>
+<td>Security 4720/4726/4738 i zdarzenia lokalnych grup</td>
+<td>Może pokazać narzędzie/command line, ale nie jest źródłem autorytatywnym</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Grupy uprzywilejowane</td>
+<td>Security 4728/4729, 4732/4733, 4756/4757</td>
+<td>Proces i command line narzędzia administracyjnego</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Zmiany zasad audytu</td>
+<td>Security 4719 oraz 4902-4912 zależnie od polityki</td>
+<td>Proces i wybrane zmiany rejestru</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Czyszczenie dzienników</td>
+<td>Security 1102, System 104</td>
+<td>Proces wevtutil/PowerShell oraz Sysmon 16 dla zmiany konfiguracji Sysmon</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Instalacja usług</td>
+<td>Security 4697, System 7045</td>
+<td>ProcessCreate, RegistryEvent Services, FileExecutableDetected</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Start/stop usług bezpieczeństwa</td>
+<td>System 7035/7036, kanały Defender/EDR; Sysmon ID 4 dla samego Sysmon</td>
+<td>ProcessCreate/RegistryEvent, ale brak pełnego stanu wszystkich usług</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Zmiany zapory</td>
+<td>Security 4946-4957 i kanały Windows Firewall</td>
+<td>ProcessCreate oraz RegistryEvent FirewallPolicy</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Zmiany konfiguracji bezpieczeństwa</td>
+<td>Security, System i kanały produktu</td>
+<td>RegistryEvent, FileCreate/Delete, ProcessCreate</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Defender/AV/EDR</td>
+<td>Defender/Operational lub kanał produktu</td>
+<td>Ochrona procesów, konfiguracja, artefakty i sieć</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>PowerShell</td>
+<td>PowerShell/Operational 4103/4104/4105/4106 oraz Windows PowerShell</td>
+<td>ProcessCreate, DNS/network, artefakty i ładowanie SMA</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Sysmon</td>
+<td>Microsoft-Windows-Sysmon/Operational</td>
+<td>Zdarzenia 1-29 zgodnie z filtrem; ID 4 i 16 są niefiltrowalne</td>
+<td>Pokryte</td>
+</tr>
+<tr>
+<td>RDP</td>
+<td>Security + RemoteConnectionManager + LocalSessionManager + RdpCoreTS</td>
+<td>Port 3389 i telemetria procesów/pliku/rejestru</td>
+<td>Pokryte warstwowo</td>
+</tr>
+<tr>
+<td>Dostęp do danych chronionych</td>
+<td>Security 4656/4663/4658/4660/4670 przy SACL; dla udziałów także 5140/5145; Wazuh FIM</td>
+<td>Tworzenie/usuwanie/PE, ale nie pełny odczyt/modyfikacja/ACL</td>
+<td>Wazuh/Windows wymagany</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="99-macierz-rol-zakres-sysmon-i-zroda-uzupeniajace">9.9 Macierz ról: zakres Sysmon i źródła uzupełniające</h3>
+<p>Profile Sysmon nie zastępują audytu aplikacyjnego, bazodanowego ani zdarzeń Security. Dla hosta wielorolowego scal odpowiednie fragmenty z baseline w jeden aktywny XML.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Grupa/rola</th>
+<th>Dodatki w profilu Sysmon</th>
+<th>Obowiązkowe/zalecane źródła Windows/aplikacji w Wazuh</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WIN-SERVER-BASELINE</td>
+<td>Wszystkie procesy i zakończenia, DNS, sterowniki, WMI, zdalne wątki, raw disk, ADS, process tampering, nowe PE; selektywna sieć, LSASS, rejestr, pliki i potoki</td>
+<td>Security, System, Application, Sysmon/Operational; polityka audytu zgodna z wymaganym zakresem</td>
+</tr>
+<tr>
+<td>WIN-FEATURE-DEFENDER</td>
+<td>Dostęp do MsMpEng/NisSrv, konfiguracja usług i wykluczeń, usuwanie historii/kwarantanny</td>
+<td>Microsoft-Windows-Windows Defender/Operational lub kanały używanego AV/EDR</td>
+</tr>
+<tr>
+<td>WIN-FEATURE-POWERSHELL-ENHANCED</td>
+<td>Ładowanie System.Management.Automation, artefakty PS1XML/CLIXML oraz proces/sieć z baseline</td>
+<td>Microsoft-Windows-PowerShell/Operational 4103/4104/4105/4106 i Windows PowerShell; Script Block/Module Logging wg ryzyka</td>
+</tr>
+<tr>
+<td>WIN-FEATURE-SYSMON</td>
+<td>Brak osobnego filtra — funkcja jest już zawarta w baseline; monitorowane także niefiltrowalne ID 4 i 16</td>
+<td>Microsoft-Windows-Sysmon/Operational; alerty na ID 4, 16 i 255</td>
+</tr>
+<tr>
+<td>WIN-ROLE-RDS</td>
+<td>Port 3389, konfiguracja RDP, artefakty w profilach sesji</td>
+<td>Security 4624/4625/4648/4672 oraz TerminalServices RemoteConnectionManager, LocalSessionManager i RdpCoreTS</td>
+</tr>
+<tr>
+<td>WIN-ROLE-FILESERVER</td>
+<td>Konfiguracja SMB, typowe noty ransomware, kontrolowane ścieżki usunięć</td>
+<td>Security 4656/4663/4670 i 5140/5142-5145, SMBServer/Operational, Wazuh FIM; SACL dla danych chronionych</td>
+</tr>
+<tr>
+<td>WIN-ROLE-DC</td>
+<td>NTDS/SYSVOL/GPO, procesy i rejestr AD/DNS/Netlogon</td>
+<td>Security 5136-5141, Directory Service, DFS Replication, DNS Server, System; Advanced Audit Policy dla Directory Service Changes</td>
+</tr>
+<tr>
+<td>WIN-ROLE-BACKUP-VEEAM</td>
+<td>Procesy Veeam, konfiguracja, metadane oraz usuwanie VBK/VIB/VRB/VBM</td>
+<td>Dzienniki Veeam Backup &amp; Replication/Agent, Windows Application/System, logi repozytorium i immutability</td>
+</tr>
+<tr>
+<td>WIN-ROLE-DATABASE-MSSQL</td>
+<td>Sieć sqlservr/SQLAgent, pliki MDF/NDF/LDF/BAK/TRN, konfiguracja i usługi</td>
+<td>SQL Server Audit/Extended Events, Windows Application/Security, logi SQL Agent; audyt logowań i zmian uprawnień</td>
+</tr>
+<tr>
+<td>WIN-ROLE-DATABASE-OTHER</td>
+<td>Procesy i typowe pliki danych/konfiguracji silników innych niż MSSQL</td>
+<td>Natywny audit log danego DBMS, Windows Application/System; ścieżki i procesy do dostrojenia</td>
+</tr>
+<tr>
+<td>WIN-ROLE-WEB-IIS</td>
+<td>Webroot/config/temp ASP.NET, w3wp/iisexpress network, biblioteki i rejestr IIS</td>
+<td>Logi W3C IIS, HTTPERR, IIS-Logging/Operational, Application i logi aplikacji; zabezpieczyć retencję</td>
+</tr>
+<tr>
+<td>WIN-ROLE-APP</td>
+<td>Runtime Java/.NET/Node/Python/PHP/Ruby, artefakty JAR/WAR/EAR/YAML i katalogi aplikacji</td>
+<td>Logi aplikacji, reverse proxy, runtime, uwierzytelniania i bazy; zakres zależny od technologii</td>
+</tr>
+<tr>
+<td>WIN-ROLE-DNS-DHCP</td>
+<td>Pliki i konfiguracja DNS/DHCP/TCP-IP</td>
+<td>DNS Server Audit/Analytical lub właściwe kanały, logi DHCP Server i Security dla zmian administracyjnych</td>
+</tr>
+<tr>
+<td>WIN-ROLE-NPS-RADIUS</td>
+<td>Konfiguracja IAS/NPS i usługi</td>
+<td>Network Policy and Access Services, Security oraz plikowe logi IAS/RADIUS; monitorować accept/reject i zmiany polityk</td>
+</tr>
+<tr>
+<td>WIN-ROLE-HYPERV</td>
+<td>Procesy vmms/vmwp, VHD/AVHD/VMCX/VMRS/VMGS i rejestr</td>
+<td>Hyper-V-VMMS/Admin, Hyper-V-Worker/Admin, FailoverClustering (jeżeli dotyczy), System/Security</td>
+</tr>
+<tr>
+<td>WIN-ROLE-PRINT</td>
+<td>Sterowniki, procesory wydruku, monitory i rejestr spoolera</td>
+<td>Microsoft-Windows-PrintService/Operational i Admin, System/Security; kontrola instalacji sterowników</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="910-ograniczenia-i-decyzje-projektowe">9.10 Ograniczenia i decyzje projektowe</h3>
+<ul>
+<li>Nie włączono FileDelete ID 23 z archiwizacją, ClipboardChange ani funkcji blokujących FileBlockExecutable/FileBlockShredding. Mogą powodować problemy z przestrzenią, prywatnością lub dostępnością i wymagają odrębnej decyzji ryzyka.</li>
+<li><code>DnsLookup=false</code> ogranicza dodatkowe zapytania i obciążenie; korelację nazw realizuj z DnsQuery, resolverem i danymi sieciowymi.</li>
+<li>Ścieżki <code>\Shares\</code>, <code>\DFSRoots\</code>, <code>\Apps\</code> i <code>\Applications\</code> są <strong>wzorcami</strong>. Zastąp je rzeczywistymi katalogami, inaczej część reguł będzie niepełna lub zbyt szeroka.</li>
+<li>Profil nie zawiera środowiskowych wyłączeń dla backupu, monitoringu, EDR, SQL i aplikacji. Wyłączenia muszą wynikać z <strong>pomiaru</strong>, a nie z założenia.</li>
+<li>Ostateczna walidacja poleceniem <code>Sysmon64.exe -c</code> na używanej wersji binariów jest obowiązkowa.</li>
+</ul>
+<h3 id="911-podstawa-normatywna-i-techniczna">9.11 Podstawa normatywna i techniczna</h3>
+<p>Stan prawny przyjęty do przeglądu: 16 lipca 2026 r.</p>
+<ul>
+<li>Ustawa o krajowym systemie cyberbezpieczeństwa po nowelizacji ogłoszonej w Dz.U. 2026 poz. 252, obowiązującej od 3 kwietnia 2026 r.</li>
+<li>Dyrektywa (UE) 2022/2555 (NIS2), w szczególności art. 21.</li>
+<li>Rozporządzenie wykonawcze Komisji (UE) 2024/2690 — szczegółowy benchmark logowania dla podmiotów objętych jego zakresem (m.in. DNS, chmura, centra danych, CDN, MSP/MSSP, usługi zaufania). Nie jest automatycznie stosowane do każdego podmiotu UKSC/NIS2 — użyto go jako wzorca tam, gdzie zakres podmiotowy ma zastosowanie albo organizacja przyjmuje go dobrowolnie.</li>
+<li>Microsoft Sysmon — dokumentacja zdarzeń i konfiguracji; reguły include/exclude.</li>
+<li>Wazuh — zbieranie dzienników Windows przez <code>eventchannel</code>.</li>
+</ul>
+<p class="co co-check"><strong>Etap 6:</strong> na hoście canary Sysmon zwalidowany (<code>Sysmon64.exe -c</code>, brak ID 255), kanały widoczne (<code>Get-WinEvent -ListLog</code>), Advanced Audit Policy i SACL ustawione dla wymaganych obszarów, PowerShell logging włączony, <code>agent.conf</code> grup zwalidowane (<code>verify-agent-conf</code>), agent przypisany do BASELINE + właściwych ról, zdarzenia dochodzą do Wazuha bez dublowania <code>localfile</code>, przeprowadzony 7-14-dniowy pomiar EPS i dostrojenie wyłączeń. <strong>Kolejny krok poza tym etapem:</strong> reguły detekcji Wazuha (pula 100000+) na zebranej telemetrii.</p>
+<hr />
+<h2 id="10-troubleshooting-najczestsze-problemy-i-przypadki-brzegowe">10. Troubleshooting — najczęstsze problemy i przypadki brzegowe</h2>
 <blockquote>
 <p>Uniwersalna zasada diagnostyki: Wazuh często zawodzi "po cichu". Zawsze zaczynaj od <code>tail -f /var/ossec/logs/ossec.log</code> (manager), <code>journalctl -u wazuh-indexer</code> / <code>/var/log/wazuh-indexer/wazuh-cluster.log</code> (indexer) i <code>journalctl -u wazuh-dashboard</code> (dashboard). Część błędów ujawnia się dopiero po <code>systemctl restart</code> usługi — samo <code>reload</code> bywa niewystarczające.</p>
 </blockquote>
-<h3 id="91-instalacja">9.1 Instalacja</h3>
+<h3 id="101-instalacja">10.1 Instalacja</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1750,7 +2060,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="92-certyfikaty-i-tls">9.2 Certyfikaty i TLS</h3>
+<h3 id="102-certyfikaty-i-tls">10.2 Certyfikaty i TLS</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1782,7 +2092,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="93-dysk-i-indeksy-najczestszy-problem-eksploatacyjny">9.3 Dysk i indeksy (najczęstszy problem eksploatacyjny!)</h3>
+<h3 id="103-dysk-i-indeksy-najczestszy-problem-eksploatacyjny">10.3 Dysk i indeksy (najczęstszy problem eksploatacyjny!)</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1819,7 +2129,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="94-klaster-managerow">9.4 Klaster managerów</h3>
+<h3 id="104-klaster-managerow">10.4 Klaster managerów</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1851,7 +2161,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="95-agenci">9.5 Agenci</h3>
+<h3 id="105-agenci">10.5 Agenci</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1883,7 +2193,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="96-uprawnienia-i-logowanie">9.6 Uprawnienia i logowanie</h3>
+<h3 id="106-uprawnienia-i-logowanie">10.6 Uprawnienia i logowanie</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1920,7 +2230,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="97-sso-ldap">9.7 SSO / LDAP</h3>
+<h3 id="107-sso-ldap">10.7 SSO / LDAP</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1952,7 +2262,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="98-wydajnosc">9.8 Wydajność</h3>
+<h3 id="108-wydajnosc">10.8 Wydajność</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -1979,7 +2289,7 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 </tr>
 </tbody>
 </table></div>
-<h3 id="99-aktualizacje-platformy">9.9 Aktualizacje platformy</h3>
+<h3 id="109-aktualizacje-platformy">10.9 Aktualizacje platformy</h3>
 <ul>
 <li>Aktualizuj <strong>sekwencyjnie wersja po wersji</strong> (4.9 → 4.10 → 4.11 → ...), nigdy z przeskokiem — skrypty migracyjne nie kumulują pominiętych zmian; przeskok potrafi uszkodzić bazę.</li>
 <li>Kolejność: Indexery (rolling, węzeł po węźle) → Managery (workery, na końcu master) → Dashboard → agenci (agentów można aktualizować masowo z GUI, o ile serwer jest nowszy).</li>
@@ -1987,8 +2297,8 @@ find /var/ossec/logs/{alerts,archives,ossec} -type f -name &quot;*.gz&quot; -mti
 <li>Serwer może być nowszy niż agenci (kompatybilność wsteczna); odwrotnie — nie.</li>
 </ul>
 <hr />
-<h2 id="10-zaaczniki">10. Załączniki</h2>
-<h3 id="101-skrocona-checklista-wdrozeniowa">10.1 Skrócona checklista wdrożeniowa</h3>
+<h2 id="11-zaaczniki">11. Załączniki</h2>
+<h3 id="111-skrocona-checklista-wdrozeniowa">11.1 Skrócona checklista wdrożeniowa</h3>
 <pre><code>ETAP 1 — PROJEKT
 [ ] Oszacowany EPS (x2 zapas) i wybrany wariant architektury
 [ ] Tabela maszyn: role, vCPU/RAM/dysk (SSD!), adresacja
@@ -2031,7 +2341,7 @@ ETAP 5 — BEZPIECZEŃSTWO
 [ ] Logrotate + cron czyszczący archiwa logów
 [ ] Polityka ISM aktywna (&quot;Managed by policy&quot;)
 </code></pre>
-<h3 id="102-przydatne-komendy-diagnostyczne-sciaga">10.2 Przydatne komendy diagnostyczne (ściąga)</h3>
+<h3 id="112-przydatne-komendy-diagnostyczne-sciaga">11.2 Przydatne komendy diagnostyczne (ściąga)</h3>
 <pre><code class="language-bash"># Stan usług
 systemctl status wazuh-manager wazuh-indexer wazuh-dashboard filebeat
 
@@ -2062,7 +2372,7 @@ journalctl -u wazuh-dashboard -n 50
 # Ważność certyfikatu
 openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
 </code></pre>
-<h3 id="103-sownik-pojec">10.3 Słownik pojęć</h3>
+<h3 id="113-sownik-pojec">11.3 Słownik pojęć</h3>
 <div class="tbl"><table>
 <thead>
 <tr>
@@ -2117,6 +2427,17 @@ openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
 </tr>
 </tbody>
 </table></div>
+<hr />
+<h2 id="12-uwagi-recenzyjne-spojnosc-czesci-windows-z-metodyka-do-omowienia-z-pawem">12. Uwagi recenzyjne — spójność części Windows z metodyką (do omówienia z Pawłem)</h2>
+<blockquote>
+<p>Poniższe punkty to wynik porównania ETAP 6 z metodyką kursu (transkrypcje, prezentacje, ćwiczenia). Zebrane jako materiał do dyskusji — nie są to błędy blokujące. Uwzględniono tylko punkty pewne.</p>
+</blockquote>
+<p><strong>1. Warstwa telemetrii bez warstwy reguł (luka zakresu).</strong> ETAP 6 dostarcza kompletne <em>zbieranie</em> (Sysmon + kanały + FIM), ale nie zawiera reguł detekcji Wazuha (pula 100000–120000), na których kurs kładł duży nacisk (pełny potok: zbieranie → dekodery → reguły → alert). Bez reguł mamy bogatą telemetrię w Discover, ale nie mamy alertów. Atrybuty <code>name=</code> w profilach Sysmon (<code>BASE-*</code>) są celowo przygotowane pod filtrowanie po polu <code>RuleName</code> przy pisaniu reguł — to naturalny następny etap.</p>
+<p><strong>2. Filtrowanie u źródła vs w regułach (świadoma rozbieżność z kursem).</strong> Kurs uczył: pobrać gotowy <code>sysmonconfig.xml</code> z bloga Wazuha i <strong>filtrować w regułach</strong>, zbierając kanały szeroko. Paweł filtruje <strong>u źródła</strong> — własny, dostrojony Sysmon (include/exclude) oraz <code>&lt;query&gt;</code>/XPath z listą EventID w <code>agent.conf</code>. Podejście Pawła obniża EPS na wejściu, co lepiej realizuje kładziony przez kurs nacisk na kontrolę wolumenu — ale różni się od tego, co pokazywano na zajęciach. Wymaga poprawnej Advanced Audit Policy + SACL, by kanały w ogóle wygenerowały filtrowane EventID (jest to w dokumentacji Pawła).</p>
+<p><strong>3. Język systemu (Windows PL/EN).</strong> Kurs mocno akcentował, że polski Windows psuje dekodowanie/dopasowanie reguł. Część Pawła tego wątku nie porusza. Wpływ jest ograniczony (filtr po EventID jest językowo-niezależny, Sysmon XML jest po angielsku), ale przy regułach na wartości pól temat wróci — warto dodać notkę operacyjną.</p>
+<p><strong>4. Ryzyko dublowania kanału Sysmon.</strong> <code>WIN-FEATURE-SYSMON</code> oraz <code>wazuh-eventchannels-minimum-fragment.xml</code> oba zbierają <code>Microsoft-Windows-Sysmon/Operational</code>. Zastosowane razem → podwójny <code>localfile</code> i podwójne liczenie zdarzeń. Paweł sam to ostrzega (walidacja, nagłówek fragmentu) — do pilnowania przy wdrożeniu.</p>
+<p><strong>5. Dwa style zapytań XPath.</strong> W plikach Pawła współistnieją <code>Event/System[EventID=… or …]</code> (fragment minimalny) i <code>Event[System[(EventID=… or …)]]</code> (<code>agent.conf</code> grup). Oba są poprawne w Wazuhu; różnica jest kosmetyczna — warto ujednolicić dla czytelności.</p>
+<p><strong>Elementy zgodne z kursem (dla kontekstu):</strong> składnia <code>eventchannel</code>, kanał Sysmon/Operational bez <code>log_format</code> text/json, grupy agentów + <code>&lt;agent_config&gt;</code> + wiele grup, dyscyplina FIM („nie monitoruj wszystkiego"), tuning przez pomiar EPS, kanał PowerShell/Operational, świadomość wolumenu. Walidacja <code>verify-agent-conf</code> i mapowanie audytowe Security EventID są bardziej rygorystyczne niż to, co pokazywał kurs.</p>
 <hr />
 <p><em>Dokument przygotowany jako materiał wdrożeniowy dla administratorów IT. Przed użyciem w środowisku produkcyjnym zweryfikuj zgodność komend z aktualnie wdrażaną wersją Wazuh (dokumentacja: documentation.wazuh.com).</em></p>
 </article>
