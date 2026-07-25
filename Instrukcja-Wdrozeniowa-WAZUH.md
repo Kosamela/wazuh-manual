@@ -1295,9 +1295,9 @@ OpenSearch chroni się przed zapełnieniem dysku **watermarkami** — po przekro
 
 > Autor części: **Paweł**. Rozdział opisuje warstwę **telemetrii** dla serwerów Windows — co i jak zbierać, aby wesprzeć wymagania UKSC/NIS2 (ciągłe monitorowanie, wykrywanie incydentów, analiza dowodowa, ochrona przed nieuprawnioną modyfikacją). Materiał źródłowy i gotowe pliki: `pawel/sysmon-uksc-nis2-package/` (profile Sysmon, fragmenty, narzędzie scalające, macierze, raport) oraz `pawel/wazuh-windows-groups/` (grupy Wazuh z `agent.conf`).
 >
-> **Zakres:** to jest warstwa **zbierania telemetrii**, nie warstwa reguł. Sama konfiguracja jest środkiem technicznym; zgodności z UKSC/NIS2 nie da się stwierdzić na podstawie samego XML-a. Reguły detekcji Wazuha (pula 100000+) to kolejny krok — patrz „Uwagi recenzyjne" na końcu dokumentu.
+> **Zakres:** to jest warstwa **zbierania telemetrii**, nie warstwa reguł. Sama konfiguracja jest środkiem technicznym; zgodności z UKSC/NIS2 nie da się stwierdzić na podstawie samego XML-a. Reguły detekcji Wazuha (pula 100000+), które z tej telemetrii tworzą alerty, to osobny, kolejny krok.
 
-Przekazane wcześniej pliki Sysmon były poprawne składniowo jako XML, ale nie zapewniały wymaganego zakresu monitorowania. Najpoważniejszy błąd dotyczył semantyki pustych filtrów `onmatch="include"`: taki zapis **nie** oznacza „zbieraj wszystko" — przeciwnie, wyłączał praktycznie wszystkie filtrowalne typy zdarzeń. W tym etapie stosujemy profile z poprawną logiką: `onmatch="exclude"` bez reguł dla zdarzeń zbieranych w całości oraz filtrowany `include` dla zdarzeń wysokowolumenowych.
+Ważna zasada przy konfiguracji Sysmon: pusty filtr `onmatch="include"` **nie** oznacza „zbieraj wszystko" — przeciwnie, wyłącza dany typ zdarzeń. Dlatego w profilach zdarzenia zbierane w całości mają `onmatch="exclude"` bez reguł, a zdarzenia wysokowolumenowe — filtrowany `include`.
 
 ### 9.1 Model telemetrii: baseline + role
 
@@ -1648,21 +1648,19 @@ openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
 
 ---
 
-## 12. Uwagi recenzyjne — spójność części Windows z metodyką (do omówienia z Pawłem)
+## 12. Uwagi recenzyjne — moje notatki do omówienia z Pawłem
 
-> Poniższe punkty to wynik porównania ETAP 6 z metodyką kursu (transkrypcje, prezentacje, ćwiczenia). Zebrane jako materiał do dyskusji — nie są to błędy blokujące. Uwzględniono tylko punkty pewne.
+> Robocze notatki do rozmowy z Pawłem o jego części (ETAP 6). To nie są błędy — pakiet jest bardzo dobry. To punkty, które chcę z nim przegadać, zanim domkniemy instrukcję. Do usunięcia po rozmowie.
 
-**1. Warstwa telemetrii bez warstwy reguł (luka zakresu).** ETAP 6 dostarcza kompletne *zbieranie* (Sysmon + kanały + FIM), ale nie zawiera reguł detekcji Wazuha (pula 100000–120000), na których kurs kładł duży nacisk (pełny potok: zbieranie → dekodery → reguły → alert). Bez reguł mamy bogatą telemetrię w Discover, ale nie mamy alertów. Atrybuty `name=` w profilach Sysmon (`BASE-*`) są celowo przygotowane pod filtrowanie po polu `RuleName` przy pisaniu reguł — to naturalny następny etap.
+Paweł, kilka rzeczy do przegadania:
 
-**2. Filtrowanie u źródła vs w regułach (świadoma rozbieżność z kursem).** Kurs uczył: pobrać gotowy `sysmonconfig.xml` z bloga Wazuha i **filtrować w regułach**, zbierając kanały szeroko. Paweł filtruje **u źródła** — własny, dostrojony Sysmon (include/exclude) oraz `<query>`/XPath z listą EventID w `agent.conf`. Podejście Pawła obniża EPS na wejściu, co lepiej realizuje kładziony przez kurs nacisk na kontrolę wolumenu — ale różni się od tego, co pokazywano na zajęciach. Wymaga poprawnej Advanced Audit Policy + SACL, by kanały w ogóle wygenerowały filtrowane EventID (jest to w dokumentacji Pawła).
+**1. Polski vs angielski Windows.** Kurs mocno ostrzegał, że polska wersja Windowsa psuje dopasowanie reguł. W Twojej części tego wątku nie ma. Nie jest to krytyczne (filtrujesz po numerach EventID, a te są niezależne od języka), ale przy pisaniu reguł na treść pól może wrócić — dopiszemy krótką notkę?
 
-**3. Język systemu (Windows PL/EN).** Kurs mocno akcentował, że polski Windows psuje dekodowanie/dopasowanie reguł. Część Pawła tego wątku nie porusza. Wpływ jest ograniczony (filtr po EventID jest językowo-niezależny, Sysmon XML jest po angielsku), ale przy regułach na wartości pól temat wróci — warto dodać notkę operacyjną.
+**2. Kanał Sysmona może się dublować.** Kanał `Microsoft-Windows-Sysmon/Operational` zbiera i grupa `WIN-FEATURE-SYSMON`, i Twój fragment minimalny. Jeśli ktoś użyje obu naraz, te same zdarzenia policzą się dwa razy. Ty to zaznaczasz w dokumentacji — po prostu przypominam, żeby przy wdrożeniu na to uważać.
 
-**4. Ryzyko dublowania kanału Sysmon.** `WIN-FEATURE-SYSMON` oraz `wazuh-eventchannels-minimum-fragment.xml` oba zbierają `Microsoft-Windows-Sysmon/Operational`. Zastosowane razem → podwójny `localfile` i podwójne liczenie zdarzeń. Paweł sam to ostrzega (walidacja, nagłówek fragmentu) — do pilnowania przy wdrożeniu.
+**3. Drobiazg: dwa style zapisu zapytań.** W Twoich plikach są dwa warianty XPath — `Event/System[...]` (fragment minimalny) i `Event[System[...]]` (`agent.conf` grup). Oba działają, to czysta kosmetyka — może ujednolicimy dla porządku?
 
-**5. Dwa style zapytań XPath.** W plikach Pawła współistnieją `Event/System[EventID=… or …]` (fragment minimalny) i `Event[System[(EventID=… or …)]]` (`agent.conf` grup). Oba są poprawne w Wazuhu; różnica jest kosmetyczna — warto ujednolicić dla czytelności.
-
-**Elementy zgodne z kursem (dla kontekstu):** składnia `eventchannel`, kanał Sysmon/Operational bez `log_format` text/json, grupy agentów + `<agent_config>` + wiele grup, dyscyplina FIM („nie monitoruj wszystkiego"), tuning przez pomiar EPS, kanał PowerShell/Operational, świadomość wolumenu. Walidacja `verify-agent-conf` i mapowanie audytowe Security EventID są bardziej rygorystyczne niż to, co pokazywał kurs.
+**Reszta jest zgodna z kursem** (składnia eventchannel, grupy agentów, dyscyplina FIM „nie monitoruj wszystkiego", dostrajanie pomiarem EPS, kanał PowerShell), a walidacja `verify-agent-conf` i pełne mapowanie EventID Security pod audyt są nawet bardziej rygorystyczne niż to, co pokazywali na zajęciach. Dobra robota.
 
 ---
 
