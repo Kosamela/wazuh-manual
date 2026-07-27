@@ -1648,19 +1648,15 @@ openssl x509 -enddate -noout -in /etc/wazuh-indexer/certs/indexer.pem
 
 ---
 
-## 12. Uwagi recenzyjne — moje notatki do omówienia z Pawłem
+## 12. migracyjne
 
-> Robocze notatki do rozmowy z Pawłem o jego części (ETAP 6). To nie są błędy — pakiet jest bardzo dobry. To punkty, które chcę z nim przegadać, zanim domkniemy instrukcję. Do usunięcia po rozmowie.
-
-Paweł, kilka rzeczy do przegadania:
+duperele:
 
 **1. Polski vs angielski Windows.** Kurs mocno ostrzegał, że polska wersja Windowsa psuje dopasowanie reguł. W Twojej części tego wątku nie ma. Nie jest to krytyczne (filtrujesz po numerach EventID, a te są niezależne od języka), ale przy pisaniu reguł na treść pól może wrócić — dopiszemy krótką notkę?
 
-**2. Kanał Sysmona może się dublować.** Kanał `Microsoft-Windows-Sysmon/Operational` zbiera i grupa `WIN-FEATURE-SYSMON`, i Twój fragment minimalny. Jeśli ktoś użyje obu naraz, te same zdarzenia policzą się dwa razy. Ty to zaznaczasz w dokumentacji — po prostu przypominam, żeby przy wdrożeniu na to uważać.
+**2. Kanał Sysmona może się dublować.** Kanał `Microsoft-Windows-Sysmon/Operational` zbiera i grupa `WIN-FEATURE-SYSMON`, i Twój fragment minimalny. Jeśli ktoś użyje obu naraz, te same zdarzenia policzą się dwa razy. MAsz to zaznaczone, ale wiadomo jak jest
 
-**3. Drobiazg: dwa style zapisu zapytań.** W Twoich plikach są dwa warianty XPath — `Event/System[...]` (fragment minimalny) i `Event[System[...]]` (`agent.conf` grup). Oba działają, to czysta kosmetyka — może ujednolicimy dla porządku?
-
-**Reszta jest zgodna z kursem** (składnia eventchannel, grupy agentów, dyscyplina FIM „nie monitoruj wszystkiego", dostrajanie pomiarem EPS, kanał PowerShell), a walidacja `verify-agent-conf` i pełne mapowanie EventID Security pod audyt są nawet bardziej rygorystyczne niż to, co pokazywali na zajęciach. Dobra robota.
+imo bardzo elegancko
 
 ---
 
